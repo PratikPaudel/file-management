@@ -95,8 +95,6 @@ class ApiClient {
     
     const response = await this.request<RawConnection[]>('/connections');
 
-    console.log('Raw connections response:', response);
-
     // Filter by provider if specified and map to our Connection interface
     const filteredConnections = provider 
       ? response.filter((conn: RawConnection) => conn.connection_provider === provider)

@@ -221,7 +221,6 @@ export function FilePicker({
   };
 
   const handleAction = (action: FileAction) => {
-    console.log(`Action: ${action}`);
     // TODO: Implement actual actions
   };
 
@@ -233,7 +232,6 @@ export function FilePicker({
   };
 
   const handleSelect = () => {
-    console.log(`Selecting ${selectedIds.size} files`);
     // TODO: Implement actual selection logic
   };
 

@@ -26,7 +26,6 @@ export async function POST() {
     const responseData = await response.json();
 
     if (!response.ok) {
-      console.error("Authentication error from Supabase:", responseData);
       return NextResponse.json(
         { message: `Authentication failed: ${responseData.error_description || response.statusText}` },
         { status: response.status }
@@ -39,7 +38,6 @@ export async function POST() {
 
   } catch (error) {
     const message = error instanceof Error ? error.message : 'An unknown error occurred';
-    console.error("Auth API route internal error:", message);
     return NextResponse.json({ message }, { status: 500 });
   }
 }

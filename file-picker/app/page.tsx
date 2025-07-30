@@ -8,13 +8,6 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { Resource } from '@/lib/types';
 
-console.log("DEBUG ENV:", {
-  NODE_ENV: process.env.NODE_ENV,
-  NEXT_PUBLIC_STACK_AI_BASE_URL: process.env.NEXT_PUBLIC_STACK_AI_BASE_URL,
-  NEXT_PUBLIC_SUPABASE_AUTH_URL: process.env.NEXT_PUBLIC_SUPABASE_AUTH_URL,
-  NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-});
-
 export default function Home() {
   const [selectedConnectionId, setSelectedConnectionId] = useState<string>('');
   const [activeIntegration, setActiveIntegration] = useState('googledrive');
@@ -25,36 +18,23 @@ export default function Home() {
   // Fetch available connections
   const { data: connections, isLoading: connectionsLoading, error: connectionsError } = useConnections();
 
-  console.log('Connections state:', { connections, connectionsLoading, connectionsError });
-
   // Fetch root files to get count for sidebar
   const { data: rootFilesData, isLoading: filesLoading, error: filesError } = useConnectionFiles({
     connectionId: selectedConnectionId,
     resourceId: undefined,
   });
 
-  console.log('Files state:', { rootFilesData, filesLoading, filesError, selectedConnectionId });
-
   // Auto-select first connection when available
   useEffect(() => {
     if (connections && connections.length > 0 && !selectedConnectionId) {
-      console.log('Setting connection:', connections[0]);
       setSelectedConnectionId(connections[0].id);
     }
   }, [connections, selectedConnectionId]);
 
   const selectedConnection = connections?.find(conn => conn.id === selectedConnectionId);
 
-  console.log('Render state:', { 
-    connectionsCount: connections?.length, 
-    selectedConnectionId, 
-    selectedConnection,
-    rootFilesCount: rootFilesData?.data?.length 
-  });
-
   const handleSelectionChange = (files: Resource[]) => {
     // Handle file selection changes if needed
-    console.log('Selected files:', files);
   };
 
   const handleIntegrationClick = (integrationId: string) => {
