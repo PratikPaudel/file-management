@@ -6,7 +6,6 @@ import { IntegrationSidebar } from '@/components/file-picker/IntegrationSidebar'
 import { useConnections, useConnectionFiles } from '@/hooks/use-connection';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Skeleton } from '@/components/ui/skeleton';
-import type { Resource } from '@/lib/types';
 
 export default function Home() {
   const [selectedConnectionId, setSelectedConnectionId] = useState<string>('');
@@ -19,7 +18,7 @@ export default function Home() {
   const { data: connections, isLoading: connectionsLoading, error: connectionsError } = useConnections();
 
   // Fetch root files to get count for sidebar
-  const { data: rootFilesData, isLoading: filesLoading, error: filesError } = useConnectionFiles({
+  const { data: rootFilesData } = useConnectionFiles({
     connectionId: selectedConnectionId,
     resourceId: undefined,
   });
@@ -33,7 +32,7 @@ export default function Home() {
 
   const selectedConnection = connections?.find(conn => conn.id === selectedConnectionId);
 
-  const handleSelectionChange = (files: Resource[]) => {
+  const handleSelectionChange = () => {
     // Handle file selection changes if needed
   };
 

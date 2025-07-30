@@ -47,7 +47,6 @@ export function FileListControls({
   searchQuery = '',
   onSearchChange,
   onSortClick,
-  onFilterClick: _onFilterClick,
   totalFiles = 0,
   filteredFiles = 0,
   isSearchActive = false,

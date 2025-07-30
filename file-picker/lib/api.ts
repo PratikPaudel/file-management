@@ -1,4 +1,4 @@
-import { API_CONFIG, DEFAULT_CREDENTIALS, validateAllEnvironmentVariables, validateClientEnvironmentVariables } from './constants';
+import { API_CONFIG, validateAllEnvironmentVariables, validateClientEnvironmentVariables } from './constants';
 import type { 
   AuthHeaders, 
   Connection, 

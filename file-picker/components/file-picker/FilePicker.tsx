@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo, useCallback, useEffect } from 'react';
-import { FilePickerProps, ViewMode, Resource, SortDirection, FileAction } from '@/lib/types';
+import { FilePickerProps, ViewMode, Resource, SortDirection } from '@/lib/types';
 import { useConnectionFiles } from '@/hooks/use-connection';
 
 import { FilePickerHeader } from '@/components/file-picker/FilePickerHeader';
@@ -220,7 +220,7 @@ export function FilePicker({
     setBreadcrumbs(breadcrumbs.slice(0, index + 1));
   };
 
-  const handleAction = (action: FileAction) => {
+  const handleAction = () => {
     // TODO: Implement actual actions
   };
 
