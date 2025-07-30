@@ -1,4 +1,4 @@
-import { API_CONFIG, DEFAULT_CREDENTIALS, validateAllEnvironmentVariables } from './constants';
+import { API_CONFIG, DEFAULT_CREDENTIALS, validateAllEnvironmentVariables, validateClientEnvironmentVariables } from './constants';
 import type { 
   AuthHeaders, 
   Connection, 
@@ -16,38 +16,36 @@ class ApiClient {
   private authHeaders: AuthHeaders | null = null;
   private initialized = false;
 
-  // Initialize and validate environment variables (server-side context)
+  // Initialize and validate environment variables (context-aware)
   private initialize() {
     if (!this.initialized) {
-      validateAllEnvironmentVariables();
+      // Only validate appropriate variables based on execution context
+      if (typeof window !== 'undefined') {
+        // Client-side: only validate client environment variables
+        validateClientEnvironmentVariables();
+      } else {
+        // Server-side: validate all environment variables
+        validateAllEnvironmentVariables();
+      }
       this.initialized = true;
     }
   }
 
   // Authentication
-  async authenticate(email: string = DEFAULT_CREDENTIALS.EMAIL, password: string = DEFAULT_CREDENTIALS.PASSWORD): Promise<AuthHeaders> {
+  async authenticate(): Promise<AuthHeaders> {
     this.initialize();
-    const requestUrl = `${API_CONFIG.SUPABASE_AUTH_URL}/auth/v1/token?grant_type=password`;
     
-    const response = await fetch(requestUrl, {
+    // Call our secure, server-side authentication endpoint
+    const response = await fetch('/api/auth', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Apikey': API_CONFIG.ANON_KEY,
-      },
-      body: JSON.stringify({
-        email,
-        password,
-        gotrue_meta_security: {},
-      }),
     });
 
     if (!response.ok) {
-      throw new Error(`Authentication failed: ${response.statusText}`);
+      const errorData = await response.json();
+      throw new Error(`Authentication failed: ${errorData.message || response.statusText}`);
     }
 
-    const data = await response.json();
-    const authHeaders = { Authorization: `Bearer ${data.access_token}` };
+    const authHeaders = await response.json();
     this.authHeaders = authHeaders;
     return authHeaders;
   }
@@ -179,7 +177,7 @@ export { apiClient };
 
 // Export individual methods for easier use
 export const api = {
-  authenticate: (email?: string, password?: string) => apiClient.authenticate(email, password),
+  authenticate: () => apiClient.authenticate(),
   getCurrentOrganization: () => apiClient.getCurrentOrganization(),
   getConnections: (provider?: string) => apiClient.getConnections(provider),
   getConnectionFiles: (params: GetConnectionFilesParams) => apiClient.getConnectionFiles(params),

@@ -14,14 +14,20 @@ export const DEFAULT_CREDENTIALS = {
 
 // Validation functions split by environment context
 export const validateClientEnvironmentVariables = () => {
-  // Only validate client-side variables (available in browser)
-  const required = [
-    'NEXT_PUBLIC_STACK_AI_BASE_URL',
-    'NEXT_PUBLIC_SUPABASE_AUTH_URL', 
-    'NEXT_PUBLIC_SUPABASE_ANON_KEY'
-  ];
+  // Check environment variables directly (works in Next.js client bundle)
+  const missing = [];
   
-  const missing = required.filter(key => !process.env[key] || process.env[key]?.trim() === '');
+  if (!process.env.NEXT_PUBLIC_STACK_AI_BASE_URL || process.env.NEXT_PUBLIC_STACK_AI_BASE_URL.trim() === '') {
+    missing.push('NEXT_PUBLIC_STACK_AI_BASE_URL');
+  }
+  
+  if (!process.env.NEXT_PUBLIC_SUPABASE_AUTH_URL || process.env.NEXT_PUBLIC_SUPABASE_AUTH_URL.trim() === '') {
+    missing.push('NEXT_PUBLIC_SUPABASE_AUTH_URL');
+  }
+  
+  if (!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY.trim() === '') {
+    missing.push('NEXT_PUBLIC_SUPABASE_ANON_KEY');
+  }
   
   if (missing.length > 0) {
     throw new Error(
@@ -30,12 +36,12 @@ export const validateClientEnvironmentVariables = () => {
     );
   }
 
-  // URL validation
-  if (!API_CONFIG.BASE_URL.startsWith('https://')) {
+  // URL validation using direct environment variable access
+  if (!process.env.NEXT_PUBLIC_STACK_AI_BASE_URL!.startsWith('https://')) {
     throw new Error('NEXT_PUBLIC_STACK_AI_BASE_URL must be a valid HTTPS URL');
   }
   
-  if (!API_CONFIG.SUPABASE_AUTH_URL.startsWith('https://')) {
+  if (!process.env.NEXT_PUBLIC_SUPABASE_AUTH_URL!.startsWith('https://')) {
     throw new Error('NEXT_PUBLIC_SUPABASE_AUTH_URL must be a valid HTTPS URL');
   }
 };

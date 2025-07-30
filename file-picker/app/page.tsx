@@ -20,31 +20,7 @@ export default function Home() {
   const [activeIntegration, setActiveIntegration] = useState('googledrive');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
-  // Debug environment variables
-  useEffect(() => {
-    console.log('🔍 Environment Debug Info:');
-    console.log('NODE_ENV:', process.env.NODE_ENV);
-    console.log('All NEXT_PUBLIC_ vars:', Object.keys(process.env).filter(key => key.startsWith('NEXT_PUBLIC_')));
-    
-    const requiredClientVars = [
-      'NEXT_PUBLIC_STACK_AI_BASE_URL',
-      'NEXT_PUBLIC_SUPABASE_AUTH_URL', 
-      'NEXT_PUBLIC_SUPABASE_ANON_KEY'
-    ];
-    
-    requiredClientVars.forEach(key => {
-      const value = process.env[key];
-      console.log(`${key}:`, value ? `"${value.substring(0, 20)}..."` : 'MISSING');
-    });
-    
-    const missing = requiredClientVars.filter(key => !process.env[key]);
-    
-    if (missing.length > 0) {
-      console.error('❌ Missing client environment variables:', missing);
-    } else {
-      console.log('✅ All client environment variables loaded successfully');
-    }
-  }, []);
+
   
   // Fetch available connections
   const { data: connections, isLoading: connectionsLoading, error: connectionsError } = useConnections();
