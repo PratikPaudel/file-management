@@ -5,6 +5,9 @@ import { Resource, FileAction } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent } from '@/components/ui/card';
+import { IndexStatusBadge } from '@/components/knowledge-base/IndexStatusBadge';
+import { KnowledgeBaseActions } from '@/components/knowledge-base/KnowledgeBaseActions';
+import { useKnowledgeBaseOperations } from '@/hooks/use-knowledge-base';
 import { cn } from '@/lib/utils';
 
 interface FileGridItemProps {
@@ -13,6 +16,7 @@ interface FileGridItemProps {
   onSelect: (selected: boolean) => void;
   onNavigate: () => void;
   onAction: (action: FileAction) => void;
+  connectionId: string;
 }
 
 export function FileGridItem({
@@ -21,9 +25,32 @@ export function FileGridItem({
   onSelect,
   onNavigate,
   onAction,
+  connectionId,
 }: FileGridItemProps) {
   const isFolder = resource.inode_type === 'directory';
   const fileName = resource.inode_path.path.split('/').pop() || 'Untitled';
+
+  // Knowledge Base operations
+  const {
+    indexResource,
+    deindexResource,
+    getResourceStatus,
+  } = useKnowledgeBaseOperations(connectionId);
+  
+  const kbStatus = getResourceStatus(resource.resource_id);
+
+  // KB action handlers
+  const handleIndex = () => {
+    indexResource(resource);
+  };
+
+  const handleDeindex = () => {
+    deindexResource(resource);
+  };
+
+  const handleRetry = () => {
+    indexResource(resource);
+  };
 
   const handleClick = () => {
     if (isFolder) {
@@ -76,22 +103,21 @@ export function FileGridItem({
           </p>
         </div>
         
-        {/* Import Button - shown on hover, positioned at bottom-right */}
-        {!isFolder && (
-          <div className="absolute bottom-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
-            <Button 
-              variant="outline"
-              size="sm" 
-              className="text-xs h-6 px-2 border-gray-900 text-gray-900 hover:bg-gray-900 hover:text-white"
-              onClick={(e) => {
-                e.stopPropagation();
-                onAction('import');
-              }}
-            >
-              Import
-            </Button>
-          </div>
-        )}
+        {/* Knowledge Base Status - positioned at top-right */}
+        <div className="absolute top-2 right-2">
+          <IndexStatusBadge status={kbStatus} className="text-xs" />
+        </div>
+        
+        {/* Knowledge Base Actions - shown on hover, positioned at bottom-right */}
+        <div className="absolute bottom-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+          <KnowledgeBaseActions
+            resource={resource}
+            status={kbStatus}
+            onIndex={handleIndex}
+            onDeindex={handleDeindex}
+            onRetry={handleRetry}
+          />
+        </div>
       </CardContent>
     </Card>
   );

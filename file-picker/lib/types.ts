@@ -8,6 +8,7 @@ export interface Resource {
   created_at?: string;
   modified_at?: string;
   size?: number;
+  status?: KnowledgeBaseResourceStatus;
 }
 
 export interface Connection {
@@ -19,11 +20,35 @@ export interface Connection {
 }
 
 export interface KnowledgeBase {
-  id: string;
+  knowledge_base_id: string;
   name: string;
   description?: string;
   created_at: string;
   updated_at: string;
+  connection_id: string;
+  connection_source_ids: string[];
+}
+
+export interface CreateKnowledgeBaseParams {
+  connection_id: string;
+  connection_source_ids: string[];
+  name: string;
+  description: string;
+  indexing_params?: {
+    ocr?: boolean;
+    unstructured?: boolean;
+    embedding_params?: {
+      embedding_model: string;
+      api_key?: string | null;
+    };
+    chunker_params?: {
+      chunk_size: number;
+      chunk_overlap: number;
+      chunker: string;
+    };
+  };
+  org_level_role?: string | null;
+  cron_job_id?: string | null;
 }
 
 export interface ResourcesResponse {
@@ -33,10 +58,30 @@ export interface ResourcesResponse {
   limit?: number;
 }
 
-// UI State Types
-export type IndexingStatus = 'indexed' | 'not-indexed' | 'indexing' | 'error';
+// Knowledge Base Status Types (from API)
+export type KnowledgeBaseResourceStatus = 'pending' | 'indexed' | 'failed' | 'processing';
 
-export type FileAction = 'import' | 'view' | 'download' | 'delete';
+// UI State Types - Detailed states matching implementation plan
+export type KnowledgeBaseUIState = 
+  | 'pristine'           // Not indexed - shows + Index button
+  | 'indexing'           // File indexing - shows spinner + "Indexing..."
+  | 'indexing-folder'    // Folder indexing - shows spinner + "Indexing folder... (X files processed)"
+  | 'indexed'            // File indexed - shows green checkmark + "Indexed" + trash icon
+  | 'indexed-full'       // Folder fully indexed - shows green checkmark + "Indexed (X/X files)" + trash icon
+  | 'indexed-partial'    // Folder partially indexed - shows yellow warning + "Partially indexed (Y/X files)" + trash icon
+  | 'failed'             // Failed - shows red error + "Failed" + Retry button
+  | 'deindexing';        // De-indexing - shows spinner + "De-indexing..."
+
+export interface KnowledgeBaseItemStatus {
+  state: KnowledgeBaseUIState;
+  filesProcessed?: number;  // For folder progress tracking
+  totalFiles?: number;      // For folder progress tracking
+  error?: string;           // Error message if failed
+}
+
+export type IndexingStatus = 'indexed' | 'not-indexed' | 'indexing' | 'error'; // Keep for backward compatibility
+
+export type FileAction = 'import' | 'view' | 'download' | 'delete' | 'index' | 'deindex' | 'retry';
 
 export type ViewMode = 'list' | 'grid';
 
@@ -66,18 +111,19 @@ export interface GetConnectionFilesParams {
 
 export interface GetKnowledgeBaseStatusParams {
   knowledgeBaseId: string;
-  resourceIds: string[];
+  resourcePath?: string;
 }
 
-export interface IndexFileParams {
+export interface IndexResourceParams {
   knowledgeBaseId: string;
+  connectionId: string;
   resourceId: string;
-  connectionId?: string;
+  orgId: string;
 }
 
-export interface DeindexFileParams {
+export interface DeindexResourceParams {
   knowledgeBaseId: string;
-  resourceId: string;
+  resourcePath: string;
 }
 
 export interface ApiError {

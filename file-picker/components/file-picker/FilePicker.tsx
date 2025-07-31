@@ -290,6 +290,7 @@ export function FilePicker({
             onSort={handleSort}
             isSearchActive={isSearchActive}
             searchQuery={debouncedSearchQuery}
+            connectionId={connectionId}
           />
         ) : (
           <FileGrid
@@ -300,6 +301,7 @@ export function FilePicker({
             onSelectionChange={handleSelectionChange}
             onNavigate={handleNavigate}
             onAction={handleAction}
+            connectionId={connectionId}
           />
         )}
       </div>

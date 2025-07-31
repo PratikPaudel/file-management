@@ -5,10 +5,11 @@ import type {
   Resource, 
   ResourcesResponse, 
   KnowledgeBase,
+  CreateKnowledgeBaseParams,
   GetConnectionFilesParams,
   GetKnowledgeBaseStatusParams,
-  IndexFileParams,
-  DeindexFileParams,
+  IndexResourceParams,
+  DeindexResourceParams,
   ApiError 
 } from './types';
 
@@ -126,13 +127,7 @@ class ApiClient {
     return this.request('/knowledge_bases');
   }
 
-  async createKnowledgeBase(data: {
-    connection_id: string;
-    connection_source_ids: string[];
-    name: string;
-    description: string;
-    indexing_params?: Record<string, unknown>;
-  }): Promise<KnowledgeBase> {
+  async createKnowledgeBase(data: CreateKnowledgeBaseParams): Promise<KnowledgeBase> {
     return this.request('/knowledge_bases', {
       method: 'POST',
       body: JSON.stringify(data),
@@ -148,23 +143,27 @@ class ApiClient {
     return this.request(`/knowledge_bases/${knowledgeBaseId}/resources/children?${params}`);
   }
 
-  async indexFile({ knowledgeBaseId }: IndexFileParams): Promise<void> {
-    // This would be implemented based on actual API - for now using sync as proxy
-    const orgData = await this.getCurrentOrganization();
-    return this.syncKnowledgeBase(knowledgeBaseId, orgData.org_id);
+  async indexResource({ knowledgeBaseId, connectionId, resourceId, orgId }: IndexResourceParams): Promise<void> {
+    // First, add the resource to the KB's connection_source_ids if not already there
+    // Then trigger sync - the backend will handle finding and indexing the specific resource
+    return this.request(`/knowledge_bases/sync/trigger/${knowledgeBaseId}/${orgId}`);
   }
 
-  async deindexFile({ knowledgeBaseId, resourceId }: DeindexFileParams): Promise<void> {
-    const params = new URLSearchParams({ resource_id: resourceId });
+  async deindexResource({ knowledgeBaseId, resourcePath }: DeindexResourceParams): Promise<void> {
+    const params = new URLSearchParams({ resource_path: resourcePath });
     return this.request(`/knowledge_bases/${knowledgeBaseId}/resources?${params}`, {
       method: 'DELETE',
     });
   }
 
-  async getKnowledgeBaseStatus({ knowledgeBaseId, resourceIds }: GetKnowledgeBaseStatusParams): Promise<Resource[]> {
-    // Get all KB files and filter by resource IDs to get status
-    const allFiles = await this.getKnowledgeBaseFiles(knowledgeBaseId, '/');
-    return allFiles.data.filter(file => resourceIds.includes(file.resource_id));
+  async getKnowledgeBaseStatus({ knowledgeBaseId, resourcePath = '/' }: GetKnowledgeBaseStatusParams): Promise<ResourcesResponse> {
+    // Get KB files at the specified path to check status
+    return this.getKnowledgeBaseFiles(knowledgeBaseId, resourcePath);
+  }
+
+  // Get user profile for email-based KB naming
+  async getUserProfile(): Promise<{ email: string; [key: string]: unknown }> {
+    return this.request('/users/me');
   }
 }
 
@@ -181,10 +180,11 @@ export const api = {
   getConnectionFiles: (params: GetConnectionFilesParams) => apiClient.getConnectionFiles(params),
   getConnectionResource: (connectionId: string, resourceIds: string[]) => apiClient.getConnectionResource(connectionId, resourceIds),
   getKnowledgeBases: () => apiClient.getKnowledgeBases(),
-  createKnowledgeBase: (data: { connection_id: string; connection_source_ids: string[]; name: string; description: string; indexing_params?: Record<string, unknown>; }) => apiClient.createKnowledgeBase(data),
+  createKnowledgeBase: (data: CreateKnowledgeBaseParams) => apiClient.createKnowledgeBase(data),
   syncKnowledgeBase: (knowledgeBaseId: string, orgId: string) => apiClient.syncKnowledgeBase(knowledgeBaseId, orgId),
   getKnowledgeBaseFiles: (knowledgeBaseId: string, resourcePath?: string) => apiClient.getKnowledgeBaseFiles(knowledgeBaseId, resourcePath),
-  indexFile: (params: IndexFileParams) => apiClient.indexFile(params),
-  deindexFile: (params: DeindexFileParams) => apiClient.deindexFile(params),
+  indexResource: (params: IndexResourceParams) => apiClient.indexResource(params),
+  deindexResource: (params: DeindexResourceParams) => apiClient.deindexResource(params),
   getKnowledgeBaseStatus: (params: GetKnowledgeBaseStatusParams) => apiClient.getKnowledgeBaseStatus(params),
+  getUserProfile: () => apiClient.getUserProfile(),
 }; 

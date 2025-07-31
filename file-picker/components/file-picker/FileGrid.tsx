@@ -12,6 +12,7 @@ interface FileGridProps {
   onSelectionChange: (selectedIds: Set<string>) => void;
   onNavigate: (resourceId: string) => void;
   onAction: (action: FileAction) => void;
+  connectionId: string;
 }
 
 export function FileGrid({
@@ -21,6 +22,7 @@ export function FileGrid({
   onSelectionChange,
   onNavigate,
   onAction,
+  connectionId,
 }: FileGridProps) {
   const handleSelection = (resourceId: string, selected: boolean) => {
     const newSelected = new Set(selectedIds);
@@ -66,6 +68,7 @@ export function FileGrid({
             onSelect={(selected) => handleSelection(file.resource_id, selected)}
             onNavigate={() => onNavigate(file.resource_id)}
             onAction={(action) => onAction(action)}
+            connectionId={connectionId}
           />
         ))}
       </div>

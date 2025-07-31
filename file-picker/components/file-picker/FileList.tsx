@@ -19,6 +19,7 @@ interface FileListProps {
   onSort?: (column: string) => void;
   isSearchActive?: boolean;
   searchQuery?: string;
+  connectionId: string;
 }
 
 export function FileList({
@@ -34,6 +35,7 @@ export function FileList({
   onSort,
   isSearchActive = false,
   searchQuery = '',
+  connectionId,
 }: FileListProps) {
   const handleSelection = (resourceId: string, selected: boolean) => {
     const newSelected = new Set(selectedIds);
@@ -205,6 +207,7 @@ export function FileList({
             onSelect={(selected) => handleSelection(file.resource_id, selected)}
             onNavigate={() => onNavigate(file.resource_id)}
             onAction={(action) => onAction(action)}
+            connectionId={connectionId}
           />
         ))}
       </div>

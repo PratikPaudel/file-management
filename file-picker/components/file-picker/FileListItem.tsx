@@ -4,6 +4,9 @@ import { Folder, FileText } from 'lucide-react';
 import { Resource, FileAction } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
+import { IndexStatusBadge } from '@/components/knowledge-base/IndexStatusBadge';
+import { KnowledgeBaseActions } from '@/components/knowledge-base/KnowledgeBaseActions';
+import { useKnowledgeBaseOperations } from '@/hooks/use-knowledge-base';
 import { cn } from '@/lib/utils';
 import { useState } from 'react';
 
@@ -13,6 +16,7 @@ interface FileListItemProps {
   onSelect: (selected: boolean) => void;
   onNavigate: () => void;
   onAction: (action: FileAction) => void;
+  connectionId: string;
 }
 
 export function FileListItem({
@@ -21,12 +25,35 @@ export function FileListItem({
   onSelect,
   onNavigate,
   onAction,
+  connectionId,
 }: FileListItemProps) {
   const [clickCount, setClickCount] = useState(0);
   const [clickTimer, setClickTimer] = useState<NodeJS.Timeout | null>(null);
   
+  // Knowledge Base operations
+  const {
+    indexResource,
+    deindexResource,
+    getResourceStatus,
+  } = useKnowledgeBaseOperations(connectionId);
+  
+  const kbStatus = getResourceStatus(resource.resource_id);
+  
   const isFolder = resource.inode_type === 'directory';
   const fileName = resource.inode_path.path.split('/').pop() || 'Untitled';
+
+  // KB action handlers
+  const handleIndex = () => {
+    indexResource(resource);
+  };
+
+  const handleDeindex = () => {
+    deindexResource(resource);
+  };
+
+  const handleRetry = () => {
+    indexResource(resource);
+  };
   
   // Format date for display
   const formatDate = (dateString?: string) => {
@@ -125,21 +152,16 @@ export function FileListItem({
           </p>
         </div>
         
-        {/* Import Button */}
-        <div className="w-20 flex justify-end">
-          {!isFolder && (
-            <Button 
-              variant="outline"
-              size="sm" 
-              className="text-xs h-7 px-3 border-gray-900 text-gray-900 hover:bg-gray-900 hover:text-white"
-              onClick={(e) => {
-                e.stopPropagation();
-                onAction('import');
-              }}
-            >
-              Import
-            </Button>
-          )}
+        {/* Knowledge Base Status and Actions */}
+        <div className="w-40 flex items-center justify-end gap-2">
+          <IndexStatusBadge status={kbStatus} />
+          <KnowledgeBaseActions
+            resource={resource}
+            status={kbStatus}
+            onIndex={handleIndex}
+            onDeindex={handleDeindex}
+            onRetry={handleRetry}
+          />
         </div>
       </div>
     </div>
