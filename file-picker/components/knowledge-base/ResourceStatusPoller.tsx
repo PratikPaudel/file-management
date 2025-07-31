@@ -29,10 +29,9 @@ export function ResourceStatusPoller({ resource, connectionId }: ResourceStatusP
       const kb = await getOrCreateKB();
       const absolutePath = ensureAbsolutePath(inode_path.path);
       
-      // For folders, poll their own path. For files, poll the parent directory.
-      const pollingPath = isFolder 
-        ? absolutePath 
-        : absolutePath.substring(0, absolutePath.lastIndexOf('/')) || '/';
+      // Always poll from root path to avoid path resolution issues
+      // The API will return all indexed files, and we'll filter them
+      const pollingPath = '/';
         
       return api.getKnowledgeBaseStatus({
         knowledgeBaseId: kb.knowledge_base_id,
@@ -52,9 +51,12 @@ export function ResourceStatusPoller({ resource, connectionId }: ResourceStatusP
 
     if (isFolder) {
       // --- Folder Logic ---
-      const folderFiles = statusData.data.filter(file => 
-        ensureAbsolutePath(file.inode_path.path).startsWith(ensureAbsolutePath(inode_path.path)) && file.inode_type === 'file'
-      );
+      // Find all files that are inside this folder
+      const folderPath = ensureAbsolutePath(inode_path.path);
+      const folderFiles = statusData.data.filter(file => {
+        const filePath = ensureAbsolutePath(file.inode_path.path);
+        return filePath.startsWith(folderPath) && file.inode_type === 'file' && filePath !== folderPath;
+      });
       const indexedFiles = folderFiles.filter(file => file.status === 'indexed');
       const failedFiles = folderFiles.filter(file => file.status === 'failed');
       const totalKnownFiles = folderFiles.length; // The total number of files the backend knows about so far
@@ -73,12 +75,14 @@ export function ResourceStatusPoller({ resource, connectionId }: ResourceStatusP
             toast.success(`Folder "${folderName}" indexed successfully!`, {
               id: `indexing-${resource_id}`,
               description: `All ${indexedFiles.length} files are now searchable`,
+              duration: 5000, // Show for 5 seconds
             });
           } else {
             // Show warning toast for partially indexed folder
             toast.warning(`Folder "${folderName}" partially indexed`, {
               id: `indexing-${resource_id}`,
               description: `${indexedFiles.length}/${totalKnownFiles} files indexed successfully`,
+              duration: 5000, // Show for 5 seconds
             });
           }
           
@@ -98,7 +102,11 @@ export function ResourceStatusPoller({ resource, connectionId }: ResourceStatusP
 
     } else {
       // --- File Logic ---
-      const fileStatus = statusData.data.find(file => file.resource_id === resource_id);
+      // First try to find by resource_id, then by path as fallback
+      const fileStatus = statusData.data.find(file => 
+        file.resource_id === resource_id || 
+        ensureAbsolutePath(file.inode_path.path) === ensureAbsolutePath(inode_path.path)
+      );
       
               if (fileStatus?.status === 'indexed') {
           console.log('🎉 File indexed successfully:', inode_path.path);
@@ -108,6 +116,7 @@ export function ResourceStatusPoller({ resource, connectionId }: ResourceStatusP
           toast.success(`"${fileName}" indexed successfully!`, {
             id: `indexing-${resource_id}`,
             description: 'File is now searchable in your knowledge base',
+            duration: 5000, // Show for 5 seconds
           });
           
           updateResourceStatus(resource_id, { state: 'indexed' });
@@ -119,6 +128,7 @@ export function ResourceStatusPoller({ resource, connectionId }: ResourceStatusP
           toast.error(`Failed to index "${fileName}"`, {
             id: `indexing-${resource_id}`,
             description: 'Please try again or check the file format',
+            duration: 5000, // Show for 5 seconds
           });
           
           updateResourceStatus(resource_id, { state: 'failed', error: 'Indexing failed' });

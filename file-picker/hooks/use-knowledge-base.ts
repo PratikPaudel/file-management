@@ -133,12 +133,14 @@ export function useKnowledgeBaseOperations(connectionId: string) {
     console.log('🚀 Starting indexing:', {
       name: resource.inode_path.path,
       type: inode_type,
-      resource_id
+      resource_id,
+      fullResource: resource
     });
 
     // Show starting toast
-    toast.loading(`Starting to index "${fileName}"...`, {
+    toast.info(`Starting to index "${fileName}"...`, {
       id: `indexing-${resource_id}`,
+      duration: 3000, // Auto-dismiss after 3 seconds
     });
 
     updateResourceStatus(resource_id, {
@@ -149,12 +151,7 @@ export function useKnowledgeBaseOperations(connectionId: string) {
       await indexMutation.mutateAsync({ resourceId: resource_id });
       console.log('✅ Indexing started successfully for:', resource.inode_path.path);
       
-      // Update toast to show processing
-      toast.loading(`Indexing "${fileName}"... This may take a moment.`, {
-        id: `indexing-${resource_id}`,
-      });
-      
-      // The poller component will take over from here.
+      // The poller component will take over from here and show completion toast.
     } catch (error) {
       console.error('❌ Failed to start indexing:', resource.inode_path.path, error);
       
