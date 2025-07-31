@@ -2,7 +2,6 @@
 
 import { Folder, FileText } from 'lucide-react';
 import { Resource, FileAction } from '@/lib/types';
-import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { IndexStatusBadge } from '@/components/knowledge-base/IndexStatusBadge';
 import { KnowledgeBaseActions } from '@/components/knowledge-base/KnowledgeBaseActions';
@@ -25,7 +24,7 @@ export function FileListItem({
   selected,
   onSelect,
   onNavigate,
-  onAction,
+
   connectionId,
 }: FileListItemProps) {
   const [clickCount, setClickCount] = useState(0);

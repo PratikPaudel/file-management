@@ -66,7 +66,7 @@ export function ResourceStatusPoller({ resource, connectionId }: ResourceStatusP
       
               if (isJobDone) {
           const finalState = failedFiles.length === 0 ? 'indexed-full' : 'indexed-partial';
-          const folderName = resource.inode_path.path.split('/').pop() || 'Unknown folder';
+          const folderName = inode_path.path.split('/').pop() || 'Unknown folder';
           
           if (finalState === 'indexed-full') {
             // Show success toast for fully indexed folder
@@ -101,8 +101,8 @@ export function ResourceStatusPoller({ resource, connectionId }: ResourceStatusP
       const fileStatus = statusData.data.find(file => file.resource_id === resource_id);
       
               if (fileStatus?.status === 'indexed') {
-          console.log('🎉 File indexed successfully:', resource.inode_path.path);
-          const fileName = resource.inode_path.path.split('/').pop() || 'Unknown file';
+          console.log('🎉 File indexed successfully:', inode_path.path);
+          const fileName = inode_path.path.split('/').pop() || 'Unknown file';
           
           // Show success toast
           toast.success(`"${fileName}" indexed successfully!`, {
@@ -112,8 +112,8 @@ export function ResourceStatusPoller({ resource, connectionId }: ResourceStatusP
           
           updateResourceStatus(resource_id, { state: 'indexed' });
         } else if (fileStatus?.status === 'failed') {
-          console.log('❌ File indexing failed:', resource.inode_path.path);
-          const fileName = resource.inode_path.path.split('/').pop() || 'Unknown file';
+          console.log('❌ File indexing failed:', inode_path.path);
+          const fileName = inode_path.path.split('/').pop() || 'Unknown file';
           
           // Show error toast
           toast.error(`Failed to index "${fileName}"`, {

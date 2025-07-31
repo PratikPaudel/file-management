@@ -27,7 +27,7 @@ export interface KnowledgeBase {
   updated_at: string;
   connection_id: string;
   connection_source_ids: string[];
-  website_sources?: any[];
+  website_sources?: unknown[];
   connection_provider_type?: string;
   is_empty?: boolean;
   total_size?: number;
@@ -51,8 +51,8 @@ export interface KnowledgeBase {
   cron_job_id?: string | null;
   org_id?: string;
   org_level_role?: string | null;
-  user_metadata_schema?: any | null;
-  dataloader_metadata_schema?: any | null;
+  user_metadata_schema?: unknown | null;
+  dataloader_metadata_schema?: unknown | null;
 }
 
 export interface CreateKnowledgeBaseParams {

@@ -149,7 +149,7 @@ class ApiClient {
   }
 
   // Update a knowledge base (requires complete object)
-  async updateKnowledgeBase(knowledgeBaseId: string, kbData: any): Promise<KnowledgeBase> {
+  async updateKnowledgeBase(knowledgeBaseId: string, kbData: Partial<KnowledgeBase>): Promise<KnowledgeBase> {
     return this.request(`/knowledge_bases/${knowledgeBaseId}`, {
       method: 'PUT',
       body: JSON.stringify(kbData),
@@ -162,7 +162,7 @@ class ApiClient {
     return this.request(url);
   }
 
-  async indexResource({ knowledgeBaseId, connectionId, resourceId, orgId }: IndexResourceParams): Promise<void> {
+  async indexResource({ knowledgeBaseId, resourceId, orgId }: IndexResourceParams): Promise<void> {
     // NEW WORKFLOW: Get KB → Update KB → Trigger Sync
     
     // Step 1: Get current KB state
@@ -226,7 +226,7 @@ export const api = {
   getConnectionResource: (connectionId: string, resourceIds: string[]) => apiClient.getConnectionResource(connectionId, resourceIds),
   getKnowledgeBases: () => apiClient.getKnowledgeBases(),
   getKnowledgeBase: (knowledgeBaseId: string) => apiClient.getKnowledgeBase(knowledgeBaseId),
-  updateKnowledgeBase: (knowledgeBaseId: string, kbData: any) => apiClient.updateKnowledgeBase(knowledgeBaseId, kbData),
+  updateKnowledgeBase: (knowledgeBaseId: string, kbData: Partial<KnowledgeBase>) => apiClient.updateKnowledgeBase(knowledgeBaseId, kbData),
   triggerKnowledgeBaseSync: (knowledgeBaseId: string, orgId: string) => apiClient.triggerKnowledgeBaseSync(knowledgeBaseId, orgId),
   createKnowledgeBase: (data: CreateKnowledgeBaseParams) => apiClient.createKnowledgeBase(data),
   syncKnowledgeBase: (knowledgeBaseId: string, orgId: string) => apiClient.syncKnowledgeBase(knowledgeBaseId, orgId),
