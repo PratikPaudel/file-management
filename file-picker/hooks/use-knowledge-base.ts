@@ -1,87 +1,82 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback, useEffect } from 'react';
+import { toast } from 'sonner';
 import { api } from '@/lib/api';
-import { QUERY_KEYS, ANIMATION } from '@/lib/constants';
+import { QUERY_KEYS } from '@/lib/constants';
+import { ensureAbsolutePath } from '@/lib/utils';
 import type { 
   KnowledgeBase, 
   CreateKnowledgeBaseParams,
-  IndexResourceParams,
-  DeindexResourceParams,
   KnowledgeBaseItemStatus,
-  KnowledgeBaseUIState,
   Resource
 } from '@/lib/types';
+
+// This map will hold the states outside of React's lifecycle
+// This prevents re-renders on every component from resetting the state
+const resourceStates = new Map<string, KnowledgeBaseItemStatus>();
+
+// Cache for created KBs to avoid creating duplicates
+const knowledgeBaseCache = new Map<string, KnowledgeBase>();
 
 // Hook to get or create the single KB for a connection
 export function useKnowledgeBase(connectionId: string) {
   const queryClient = useQueryClient();
 
-  // Get existing KBs
+  // DISABLE the slow getKnowledgeBases call - it's too slow and unreliable
   const { data: knowledgeBases, isLoading: isLoadingKBs } = useQuery({
     queryKey: QUERY_KEYS.knowledgeBases,
     queryFn: api.getKnowledgeBases,
-    enabled: !!connectionId,
+    enabled: false, // DISABLED - this API is too slow
   });
 
-  // Get user profile for email-based naming
   const { data: userProfile } = useQuery({
     queryKey: ['user-profile'],
     queryFn: api.getUserProfile,
     enabled: !!connectionId,
   });
 
-  // Get org info for KB creation
   const { data: orgData } = useQuery({
     queryKey: ['organization'],
     queryFn: api.getCurrentOrganization,
     enabled: !!connectionId,
   });
 
-  // Find existing KB for this connection
-  const existingKB = knowledgeBases?.find(kb => kb.connection_id === connectionId);
+  // Check cache first instead of calling the slow API
+  const cachedKB = knowledgeBaseCache.get(connectionId);
+  const existingKB = cachedKB;
 
-  // Create KB mutation
   const createKBMutation = useMutation({
     mutationFn: (params: CreateKnowledgeBaseParams) => api.createKnowledgeBase(params),
-    onSuccess: () => {
+    onSuccess: (newKB) => {
+      // Cache the newly created KB
+      knowledgeBaseCache.set(connectionId, newKB);
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.knowledgeBases });
     }
   });
 
-  // Get or create KB
   const getOrCreateKB = useCallback(async (): Promise<KnowledgeBase> => {
     if (existingKB) {
       return existingKB;
     }
-
-    if (!userProfile?.email || !orgData?.org_id) {
-      throw new Error('Missing user profile or organization data');
+    if (createKBMutation.data) {
+      return createKBMutation.data;
     }
-
-    // Create new KB with email-based naming
+    if (!userProfile?.email || !orgData?.org_id) {
+      throw new Error('Missing user profile or organization data for KB creation.');
+    }
     const kbParams: CreateKnowledgeBaseParams = {
       connection_id: connectionId,
-      connection_source_ids: [], // Start empty, resources added on first index
+      connection_source_ids: [],
       name: `${userProfile.email}'s Knowledge Base`,
       description: `Knowledge base for ${userProfile.email}'s Google Drive files`,
-      indexing_params: {
-        ocr: false,
-        unstructured: true,
-        embedding_params: {
-          embedding_model: "text-embedding-ada-002",
-          api_key: null
-        },
-        chunker_params: {
-          chunk_size: 1500,
-          chunk_overlap: 500,
-          chunker: "sentence"
-        }
-      },
+      indexing_params: { ocr: false, unstructured: true, embedding_params: { embedding_model: "text-embedding-ada-002", api_key: null }, chunker_params: { chunk_size: 1500, chunk_overlap: 500, chunker: "sentence" } },
       org_level_role: null,
       cron_job_id: null
     };
-
-    return createKBMutation.mutateAsync(kbParams);
+    const newKB = await createKBMutation.mutateAsync(kbParams);
+    // Cache it immediately
+    knowledgeBaseCache.set(connectionId, newKB);
+    return newKB;
   }, [existingKB, userProfile, orgData, connectionId, createKBMutation]);
 
   return {
@@ -94,212 +89,116 @@ export function useKnowledgeBase(connectionId: string) {
 
 // Hook for managing resource indexing/de-indexing operations
 export function useKnowledgeBaseOperations(connectionId: string) {
-  const queryClient = useQueryClient();
   const { getOrCreateKB } = useKnowledgeBase(connectionId);
-  
-  // Track operation states for each resource
-  const [operationStates, setOperationStates] = useState<Record<string, KnowledgeBaseItemStatus>>({});
-  
-  // Polling intervals for status updates
-  const pollingIntervals = useRef<Record<string, NodeJS.Timeout>>({});
+  const [operationStates, setOperationStates] = useState<Map<string, KnowledgeBaseItemStatus>>(resourceStates);
 
-  // Index resource mutation
+  // We need a way to force re-renders when the map changes
+  const [, setTick] = useState(0);
+  const forceUpdate = useCallback(() => setTick(t => t + 1), []);
+
+  const updateResourceStatus = useCallback((resourceId: string, status: KnowledgeBaseItemStatus) => {
+    resourceStates.set(resourceId, status);
+    forceUpdate();
+  }, [forceUpdate]);
+
   const indexMutation = useMutation({
-    mutationFn: async (params: { resourceId: string; resourcePath: string }) => {
+    mutationFn: async (params: { resourceId: string }) => {
       const kb = await getOrCreateKB();
       const orgData = await api.getCurrentOrganization();
-      
       return api.indexResource({
         knowledgeBaseId: kb.knowledge_base_id,
         connectionId,
         resourceId: params.resourceId,
         orgId: orgData.org_id
       });
-    }
+    },
   });
 
-  // De-index resource mutation  
   const deindexMutation = useMutation({
     mutationFn: async (params: { resourcePath: string }) => {
       const kb = await getOrCreateKB();
-      
+      const absolutePath = ensureAbsolutePath(params.resourcePath);
       return api.deindexResource({
         knowledgeBaseId: kb.knowledge_base_id,
-        resourcePath: params.resourcePath
+        resourcePath: absolutePath
       });
     }
   });
 
-  // Start polling for resource status
-  const startPolling = useCallback((resourceId: string, resourcePath: string, isFolder: boolean) => {
-    if (pollingIntervals.current[resourceId]) {
-      clearInterval(pollingIntervals.current[resourceId]);
-    }
-
-    pollingIntervals.current[resourceId] = setInterval(async () => {
-      try {
-        const kb = await getOrCreateKB();
-        const statusData = await api.getKnowledgeBaseStatus({
-          knowledgeBaseId: kb.knowledge_base_id,
-          resourcePath: isFolder ? resourcePath : '/'
-        });
-
-        if (isFolder) {
-          // For folders, count processed files
-          const folderFiles = statusData.data.filter(file => 
-            file.inode_path.path.startsWith(resourcePath) && file.inode_type === 'file'
-          );
-          const indexedFiles = folderFiles.filter(file => file.status === 'indexed');
-          const failedFiles = folderFiles.filter(file => file.status === 'failed');
-          const totalFiles = folderFiles.length;
-          const processedFiles = indexedFiles.length + failedFiles.length;
-
-          if (totalFiles > 0 && processedFiles === totalFiles) {
-            // Folder indexing complete
-            clearInterval(pollingIntervals.current[resourceId]);
-            delete pollingIntervals.current[resourceId];
-
-            const state: KnowledgeBaseUIState = failedFiles.length === 0 ? 'indexed-full' : 'indexed-partial';
-            setOperationStates(prev => ({
-              ...prev,
-              [resourceId]: {
-                state,
-                filesProcessed: indexedFiles.length,
-                totalFiles
-              }
-            }));
-          } else {
-            // Still processing
-            setOperationStates(prev => ({
-              ...prev,
-              [resourceId]: {
-                ...prev[resourceId],
-                filesProcessed: processedFiles,
-                totalFiles
-              }
-            }));
-          }
-        } else {
-          // For files, check individual status
-          const fileResource = statusData.data.find(file => file.resource_id === resourceId);
-          if (fileResource?.status === 'indexed') {
-            clearInterval(pollingIntervals.current[resourceId]);
-            delete pollingIntervals.current[resourceId];
-            
-            setOperationStates(prev => ({
-              ...prev,
-              [resourceId]: { state: 'indexed' }
-            }));
-          } else if (fileResource?.status === 'failed') {
-            clearInterval(pollingIntervals.current[resourceId]);
-            delete pollingIntervals.current[resourceId];
-            
-            setOperationStates(prev => ({
-              ...prev,
-              [resourceId]: { state: 'failed' }
-            }));
-          }
-        }
-      } catch (error) {
-        console.error('Polling error:', error);
-        clearInterval(pollingIntervals.current[resourceId]);
-        delete pollingIntervals.current[resourceId];
-        
-        setOperationStates(prev => ({
-          ...prev,  
-          [resourceId]: { state: 'failed', error: 'Status check failed' }
-        }));
-      }
-    }, ANIMATION.POLLING_INTERVAL);
-  }, [getOrCreateKB]);
-
-  // Index a resource
   const indexResource = useCallback(async (resource: Resource) => {
-    const resourceId = resource.resource_id;
-    const resourcePath = resource.inode_path.path;
-    const isFolder = resource.inode_type === 'directory';
+    const { resource_id, inode_type } = resource;
+    const isFolder = inode_type === 'directory';
+    const fileName = resource.inode_path.path.split('/').pop() || 'Unknown file';
 
-    // Set initial indexing state
-    setOperationStates(prev => ({
-      ...prev,
-      [resourceId]: {
-        state: isFolder ? 'indexing-folder' : 'indexing',
-        filesProcessed: 0,
-        totalFiles: isFolder ? undefined : 1
-      }
-    }));
+    console.log('🚀 Starting indexing:', {
+      name: resource.inode_path.path,
+      type: inode_type,
+      resource_id
+    });
+
+    // Show starting toast
+    toast.loading(`Starting to index "${fileName}"...`, {
+      id: `indexing-${resource_id}`,
+    });
+
+    updateResourceStatus(resource_id, {
+      state: isFolder ? 'indexing-folder' : 'indexing'
+    });
 
     try {
-      await indexMutation.mutateAsync({ resourceId, resourcePath });
+      await indexMutation.mutateAsync({ resourceId: resource_id });
+      console.log('✅ Indexing started successfully for:', resource.inode_path.path);
       
-      // Start polling for status updates
-      startPolling(resourceId, resourcePath, isFolder);
+      // Update toast to show processing
+      toast.loading(`Indexing "${fileName}"... This may take a moment.`, {
+        id: `indexing-${resource_id}`,
+      });
       
+      // The poller component will take over from here.
     } catch (error) {
-      setOperationStates(prev => ({
-        ...prev,
-        [resourceId]: { 
-          state: 'failed', 
-          error: error instanceof Error ? error.message : 'Index failed' 
-        }
-      }));
+      console.error('❌ Failed to start indexing:', resource.inode_path.path, error);
+      
+      // Show error toast
+      toast.error(`Failed to start indexing "${fileName}"`, {
+        id: `indexing-${resource_id}`,
+        description: error instanceof Error ? error.message : 'Unknown error occurred',
+      });
+      
+      updateResourceStatus(resource_id, {
+        state: 'failed',
+        error: error instanceof Error ? error.message : 'Index trigger failed'
+      });
     }
-  }, [indexMutation, startPolling]);
+  }, [indexMutation, updateResourceStatus]);
 
-  // De-index a resource
   const deindexResource = useCallback(async (resource: Resource) => {
-    const resourceId = resource.resource_id;
-    const resourcePath = resource.inode_path.path;
-
-    // Set de-indexing state
-    setOperationStates(prev => ({
-      ...prev,
-      [resourceId]: { state: 'deindexing' }
-    }));
+    const { resource_id, inode_path } = resource;
+    
+    updateResourceStatus(resource_id, { state: 'deindexing' });
 
     try {
-      await deindexMutation.mutateAsync({ resourcePath });
-      
-      // Remove from state (back to pristine)
-      setOperationStates(prev => {
-        const newState = { ...prev };
-        delete newState[resourceId];
-        return newState;
-      });
-      
+      await deindexMutation.mutateAsync({ resourcePath: inode_path.path });
+      // On success, we remove it from the map to return to pristine
+      resourceStates.delete(resource_id);
+      forceUpdate();
     } catch (error) {
-      // Revert to previous indexed state on error
-      setOperationStates(prev => ({
-        ...prev,
-        [resourceId]: { 
-          state: 'indexed',
-          error: error instanceof Error ? error.message : 'De-index failed' 
-        }
-      }));
-    }
-  }, [deindexMutation]);
-
-  // Get current status for a resource
-  const getResourceStatus = useCallback((resourceId: string): KnowledgeBaseItemStatus => {
-    return operationStates[resourceId] || { state: 'pristine' };
-  }, [operationStates]);
-
-  // Cleanup polling on unmount
-  useEffect(() => {
-    return () => {
-      Object.values(pollingIntervals.current).forEach(interval => {
-        clearInterval(interval);
+      updateResourceStatus(resource_id, {
+        state: 'indexed', // Revert to previous state on failure
+        error: error instanceof Error ? error.message : 'De-index failed'
       });
-    };
-  }, []);
+    }
+  }, [deindexMutation, updateResourceStatus, forceUpdate]);
+
+  const getResourceStatus = useCallback((resourceId: string): KnowledgeBaseItemStatus => {
+    return operationStates.get(resourceId) || { state: 'pristine' };
+  }, [operationStates]);
 
   return {
     indexResource,
     deindexResource,
     getResourceStatus,
+    updateResourceStatus, // Expose this for the poller
     isIndexing: indexMutation.isPending,
     isDeindexing: deindexMutation.isPending,
-    indexError: indexMutation.error,
-    deindexError: deindexMutation.error,
   };
 }

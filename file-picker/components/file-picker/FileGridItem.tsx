@@ -9,6 +9,7 @@ import { IndexStatusBadge } from '@/components/knowledge-base/IndexStatusBadge';
 import { KnowledgeBaseActions } from '@/components/knowledge-base/KnowledgeBaseActions';
 import { useKnowledgeBaseOperations } from '@/hooks/use-knowledge-base';
 import { cn } from '@/lib/utils';
+import { ResourceStatusPoller } from '@/components/knowledge-base/ResourceStatusPoller';
 
 interface FileGridItemProps {
   resource: Resource;
@@ -30,6 +31,7 @@ export function FileGridItem({
   const isFolder = resource.inode_type === 'directory';
   const fileName = resource.inode_path.path.split('/').pop() || 'Untitled';
 
+
   // Knowledge Base operations
   const {
     indexResource,
@@ -38,6 +40,7 @@ export function FileGridItem({
   } = useKnowledgeBaseOperations(connectionId);
   
   const kbStatus = getResourceStatus(resource.resource_id);
+  const isPolling = kbStatus.state === 'indexing' || kbStatus.state === 'indexing-folder';
 
   // KB action handlers
   const handleIndex = () => {
@@ -72,6 +75,8 @@ export function FileGridItem({
   };
 
   return (
+    <>
+  {isPolling && <ResourceStatusPoller resource={resource} connectionId={connectionId} />}
     <Card 
       className={cn(
         "group relative hover:bg-gray-100 transition-colors cursor-pointer",
@@ -120,5 +125,6 @@ export function FileGridItem({
         </div>
       </CardContent>
     </Card>
+    </>
   );
 } 

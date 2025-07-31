@@ -27,6 +27,32 @@ export interface KnowledgeBase {
   updated_at: string;
   connection_id: string;
   connection_source_ids: string[];
+  website_sources?: any[];
+  connection_provider_type?: string;
+  is_empty?: boolean;
+  total_size?: number;
+  indexing_params?: {
+    ocr?: boolean;
+    unstructured?: boolean;
+    embedding_params?: {
+      api?: string | null;
+      base_url?: string | null;
+      embedding_model: string;
+      batch_size?: number;
+      track_usage?: boolean;
+      timeout?: number;
+    };
+    chunker_params?: {
+      chunk_size: number;
+      chunk_overlap: number;
+      chunker_type?: string;
+    };
+  };
+  cron_job_id?: string | null;
+  org_id?: string;
+  org_level_role?: string | null;
+  user_metadata_schema?: any | null;
+  dataloader_metadata_schema?: any | null;
 }
 
 export interface CreateKnowledgeBaseParams {
@@ -60,6 +86,19 @@ export interface ResourcesResponse {
 
 // Knowledge Base Status Types (from API)
 export type KnowledgeBaseResourceStatus = 'pending' | 'indexed' | 'failed' | 'processing';
+
+// Knowledge Base Resource from API (what we get when polling status)
+export interface KnowledgeBaseResource {
+  resource_id: string;
+  inode_path: {
+    path: string;
+  };
+  inode_type: 'file' | 'directory';
+  status: KnowledgeBaseResourceStatus;
+  created_at?: string;
+  modified_at?: string;
+  size?: number;
+}
 
 // UI State Types - Detailed states matching implementation plan
 export type KnowledgeBaseUIState = 

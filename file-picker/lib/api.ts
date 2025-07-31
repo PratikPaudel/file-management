@@ -143,10 +143,55 @@ class ApiClient {
     return this.request(`/knowledge_bases/${knowledgeBaseId}/resources/children?${params}`);
   }
 
+  // Get a single knowledge base by ID
+  async getKnowledgeBase(knowledgeBaseId: string): Promise<KnowledgeBase> {
+    return this.request(`/knowledge_bases/${knowledgeBaseId}`);
+  }
+
+  // Update a knowledge base (requires complete object)
+  async updateKnowledgeBase(knowledgeBaseId: string, kbData: any): Promise<KnowledgeBase> {
+    return this.request(`/knowledge_bases/${knowledgeBaseId}`, {
+      method: 'PUT',
+      body: JSON.stringify(kbData),
+    });
+  }
+
+  // Trigger sync for a knowledge base
+  async triggerKnowledgeBaseSync(knowledgeBaseId: string, orgId: string): Promise<void> {
+    const url = `/knowledge_bases/sync/trigger/${knowledgeBaseId}/${orgId}`;
+    return this.request(url);
+  }
+
   async indexResource({ knowledgeBaseId, connectionId, resourceId, orgId }: IndexResourceParams): Promise<void> {
-    // First, add the resource to the KB's connection_source_ids if not already there
-    // Then trigger sync - the backend will handle finding and indexing the specific resource
-    return this.request(`/knowledge_bases/sync/trigger/${knowledgeBaseId}/${orgId}`);
+    // NEW WORKFLOW: Get KB → Update KB → Trigger Sync
+    
+    // Step 1: Get current KB state
+    const currentKB = await this.getKnowledgeBase(knowledgeBaseId);
+    
+    // Step 2: Add new resource ID if not already present
+    const existingIds = currentKB.connection_source_ids || [];
+    if (!existingIds.includes(resourceId)) {
+      const updatedIds = [...existingIds, resourceId];
+      
+      // Step 3: Update KB with new resource ID
+      const updatedKB = {
+        connection_id: currentKB.connection_id,
+        connection_source_ids: updatedIds,
+        website_sources: currentKB.website_sources || [],
+        name: currentKB.name,
+        description: currentKB.description,
+        indexing_params: currentKB.indexing_params,
+        org_level_role: currentKB.org_level_role,
+        cron_job_id: currentKB.cron_job_id,
+        user_metadata_schema: currentKB.user_metadata_schema,
+        dataloader_metadata_schema: currentKB.dataloader_metadata_schema,
+      };
+      
+      await this.updateKnowledgeBase(knowledgeBaseId, updatedKB);
+    }
+    
+    // Step 4: Trigger sync
+    await this.triggerKnowledgeBaseSync(knowledgeBaseId, orgId);
   }
 
   async deindexResource({ knowledgeBaseId, resourcePath }: DeindexResourceParams): Promise<void> {
@@ -180,6 +225,9 @@ export const api = {
   getConnectionFiles: (params: GetConnectionFilesParams) => apiClient.getConnectionFiles(params),
   getConnectionResource: (connectionId: string, resourceIds: string[]) => apiClient.getConnectionResource(connectionId, resourceIds),
   getKnowledgeBases: () => apiClient.getKnowledgeBases(),
+  getKnowledgeBase: (knowledgeBaseId: string) => apiClient.getKnowledgeBase(knowledgeBaseId),
+  updateKnowledgeBase: (knowledgeBaseId: string, kbData: any) => apiClient.updateKnowledgeBase(knowledgeBaseId, kbData),
+  triggerKnowledgeBaseSync: (knowledgeBaseId: string, orgId: string) => apiClient.triggerKnowledgeBaseSync(knowledgeBaseId, orgId),
   createKnowledgeBase: (data: CreateKnowledgeBaseParams) => apiClient.createKnowledgeBase(data),
   syncKnowledgeBase: (knowledgeBaseId: string, orgId: string) => apiClient.syncKnowledgeBase(knowledgeBaseId, orgId),
   getKnowledgeBaseFiles: (knowledgeBaseId: string, resourcePath?: string) => apiClient.getKnowledgeBaseFiles(knowledgeBaseId, resourcePath),

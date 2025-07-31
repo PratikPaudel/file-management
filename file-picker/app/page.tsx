@@ -23,6 +23,8 @@ export default function Home() {
     resourceId: undefined,
   });
 
+
+
   // Auto-select first connection when available
   useEffect(() => {
     if (connections && connections.length > 0 && !selectedConnectionId) {
@@ -31,6 +33,7 @@ export default function Home() {
   }, [connections, selectedConnectionId]);
 
   const selectedConnection = connections?.find(conn => conn.id === selectedConnectionId);
+
 
   const handleSelectionChange = () => {
     // Handle file selection changes if needed

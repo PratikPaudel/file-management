@@ -9,6 +9,7 @@ import { KnowledgeBaseActions } from '@/components/knowledge-base/KnowledgeBaseA
 import { useKnowledgeBaseOperations } from '@/hooks/use-knowledge-base';
 import { cn } from '@/lib/utils';
 import { useState } from 'react';
+import { ResourceStatusPoller } from '@/components/knowledge-base/ResourceStatusPoller';
 
 interface FileListItemProps {
   resource: Resource;
@@ -38,7 +39,7 @@ export function FileListItem({
   } = useKnowledgeBaseOperations(connectionId);
   
   const kbStatus = getResourceStatus(resource.resource_id);
-  
+  const isPolling = kbStatus.state === 'indexing' || kbStatus.state === 'indexing-folder';
   const isFolder = resource.inode_type === 'directory';
   const fileName = resource.inode_path.path.split('/').pop() || 'Untitled';
 
@@ -103,6 +104,8 @@ export function FileListItem({
   };
 
   return (
+    <>
+          {isPolling && <ResourceStatusPoller resource={resource} connectionId={connectionId} />}
     <div className="relative">
       {/* Full-width background for hover/selected states */}
       <div 
@@ -165,5 +168,6 @@ export function FileListItem({
         </div>
       </div>
     </div>
+    </>
   );
 } 
