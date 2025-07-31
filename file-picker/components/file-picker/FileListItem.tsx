@@ -29,6 +29,7 @@ export function FileListItem({
 }: FileListItemProps) {
   const [clickCount, setClickCount] = useState(0);
   const [clickTimer, setClickTimer] = useState<NodeJS.Timeout | null>(null);
+  const [isAnimating, setIsAnimating] = useState(false);
   
   // Knowledge Base operations
   const {
@@ -80,7 +81,10 @@ export function FileListItem({
         // Single click - select folder
         onSelect(!selected);
       } else if (clickCount === 1) {
-        // Double click - navigate into folder
+        // Double click - navigate into folder and trigger animation
+        setIsAnimating(true);
+        // Reset animation state after animation completes
+        setTimeout(() => setIsAnimating(false), 150);
         onNavigate();
       }
       setClickCount(0);
@@ -105,13 +109,18 @@ export function FileListItem({
   return (
     <>
           {isPolling && <ResourceStatusPoller resource={resource} connectionId={connectionId} />}
-    <div className="relative">
+    <div className={cn(
+        "relative group",
+        "hover:scale-[1.001] transition-transform duration-150",
+        isAnimating && "animate-scale-click"
+      )}>
       {/* Full-width background for hover/selected states */}
       <div 
         className={cn(
-          "absolute inset-0 transition-colors",
-          "hover:bg-gray-100",
-          selected && "bg-blue-50 hover:bg-blue-100"
+          "absolute inset-0",
+          "transition-all duration-150",
+          "hover:bg-gray-100/80 group-hover:shadow-sm",
+          selected && "bg-blue-50 hover:bg-blue-100/90"
         )}
       />
       
@@ -142,7 +151,7 @@ export function FileListItem({
           className="flex-1 min-w-0 cursor-pointer"
           onClick={handleItemClick}
         >
-          <p className="text-sm text-gray-900 truncate font-medium">
+          <p className="text-sm text-gray-900 truncate font-medium group-hover:text-gray-700">
             {fileName}
           </p>
         </div>
