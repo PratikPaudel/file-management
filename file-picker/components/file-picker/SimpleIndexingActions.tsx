@@ -23,7 +23,7 @@ export function SimpleIndexingActions({
     return null;
   }
 
-  if (status === 'indexed') {
+  if (status === 'indexed' || status === 'synced') {
     // Show unindex button
     return (
       <Button
@@ -39,16 +39,7 @@ export function SimpleIndexingActions({
 
   if (status === 'not_indexed') {
     // Show index button
-    return (
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={onIndex}
-        className="h-6 w-6 p-0 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
-      >
-        <Plus className="w-3 h-3" />
-      </Button>
-    );
+    return null;
   }
 
   // For any other status, show nothing

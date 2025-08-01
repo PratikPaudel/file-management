@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useCallback, useEffect } from 'react';
 import { FilePickerProps, ViewMode, Resource, SortDirection } from '@/lib/types';
+import { useFileIndexing } from '@/hooks/use-file-indexing';
 import { useConnectionFiles } from '@/hooks/use-connection';
 // import { useFileIndexing, IndexingStatus } from '@/hooks/use-file-indexing'; // Replaced with batch workflow
 
@@ -15,6 +16,7 @@ import { useBatchKnowledgeBase } from '@/hooks/use-batch-knowledge-base';
 import { useResourceSelection } from '@/hooks/use-resource-selection';
 import { useFileStatus } from '@/hooks/use-file-status';
 import { useKnowledgeBasePersistence } from '@/hooks/use-knowledge-base-persistence';
+import { toast, TOAST_MESSAGES } from '@/lib/toast';
 
 interface BreadcrumbItem {
   name: string;
@@ -37,6 +39,8 @@ export function FilePicker({
   const [breadcrumbs, setBreadcrumbs] = useState<BreadcrumbItem[]>([
     { name: 'My Drive', path: '/', resourceId: undefined }
   ]);
+
+  
 
   // Debounce search query
   useEffect(() => {
@@ -209,6 +213,8 @@ export function FilePicker({
   const isTypeFilterActive = typeFilter !== 'all';
   
   // Get available file extensions for filter options
+  const { unindexFile } = useFileIndexing({ connectionId, files });
+
   const availableFileTypes = useMemo(() => {
     const rawFiles = filesData?.data || [];
     const extensions = new Set<string>();
@@ -309,11 +315,34 @@ export function FilePicker({
       alert('Please select at least one file to index');
       return;
     }
+
+    // Filter out already synced files
+    const newFilesToIndex = filesToIndex.filter(file => 
+      getFileStatus(file.resource_id) !== 'synced'
+    );
+
+    if (newFilesToIndex.length === 0) {
+      toast.error('All selected files are already synced');
+      return;
+    }
+
+    if (newFilesToIndex.length < filesToIndex.length) {
+      toast.error(TOAST_MESSAGES.SYNCED_FILES_SKIPPED);
+    }
     
-    await createKnowledgeBaseWithResources(selectedResources, (resourceIds, status) => {
+    // Create a new selection with only non-synced files
+    const filteredResources = Array.from(selectedResources).filter(resource => 
+      getFileStatus(resource.resource_id) !== 'synced'
+    );
+    
+    await createKnowledgeBaseWithResources(filteredResources, (resourceIds, status) => {
       setMultipleFileStatuses(resourceIds, status);
+      
+      // Clear selection after successful addition to KB
+      clearSelection();
+      setSelectedIds(new Set());
     });
-  }, [selectedResources, getSelectedFiles, createKnowledgeBaseWithResources, setMultipleFileStatuses]);
+  }, [getSelectedFiles, createKnowledgeBaseWithResources, setMultipleFileStatuses, getFileStatus, selectedResources, clearSelection]);
 
   const handleTriggerSync = useCallback(async () => {
     await triggerSync((resourceIds, status) => {
@@ -330,7 +359,11 @@ export function FilePicker({
     if (fileResourceIds.length > 0) {
       setMultipleFileStatuses(fileResourceIds, 'synced');
     }
-  }, [triggerSync, setMultipleFileStatuses, files, getFileStatus]);
+    
+    // Clear any remaining selections after sync
+    clearSelection();
+    setSelectedIds(new Set());
+  }, [triggerSync, setMultipleFileStatuses, files, getFileStatus, clearSelection]);
 
   // Removed handleNewKnowledgeBase - no longer supporting multiple KBs
 
@@ -436,7 +469,7 @@ export function FilePicker({
             connectionId={connectionId}
             fileIndexingStatus={convertedFileStatuses}
             onIndexFile={async () => {}} // Batch mode - no individual actions
-            onUnindexFile={async () => {}} // Batch mode - no individual actions
+            onUnindexFile={unindexFile}
           />
         ) : (
           <FileGrid
@@ -450,7 +483,7 @@ export function FilePicker({
             connectionId={connectionId}
             fileIndexingStatus={convertedFileStatuses}
             onIndexFile={async () => {}} // Batch mode - no individual actions
-            onUnindexFile={async () => {}} // Batch mode - no individual actions
+            onUnindexFile={unindexFile}
           />
         )}
       </div>

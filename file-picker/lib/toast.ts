@@ -26,4 +26,6 @@ export const TOAST_MESSAGES = {
   SYNCED: 'Knowledge base synced! Files are now searchable.',
   ERROR_ADDING: 'Failed to add files to knowledge base',
   ERROR_SYNCING: 'Failed to sync knowledge base',
+  ALREADY_SYNCED: 'This file is already synced and searchable',
+  SYNCED_FILES_SKIPPED: 'Some files were skipped - they are already synced',
 } as const;

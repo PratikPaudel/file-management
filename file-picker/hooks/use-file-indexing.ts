@@ -241,25 +241,42 @@ export function useFileIndexing({ connectionId, files }: UseFileIndexingProps): 
 
       // Update status immediately (unindex is usually fast)
       setTimeout(async () => {
-        const statusData = await api.getKnowledgeBaseStatus({
-          knowledgeBaseId: kb.knowledge_base_id,
-          resourcePath: '/'
-        });
-        
-        console.log('✅ Status updated after unindexing, now has', statusData.indexedFilePaths.length, 'indexed files');
-        setIndexedFilePaths(statusData.indexedFilePaths);
+        try {
+          const statusData = await api.getKnowledgeBaseStatus({
+            knowledgeBaseId: kb.knowledge_base_id,
+            resourcePath: '/'
+          });
+          
+          console.log('✅ Status updated after unindexing, now has', statusData.indexedFilePaths.length, 'indexed files');
+          setIndexedFilePaths(statusData.indexedFilePaths);
+        } catch (statusError) {
+          console.warn('⚠️ Could not refresh status after unindexing, but treating as successful');
+        }
         setFileIndexingStatus(prev => new Map(prev).set(resourceId, 'not_indexed'));
       }, 1000);
       
     } catch (error) {
       console.error('❌ Failed to unindex file:', error);
-      // Revert to indexed on error
-      setFileIndexingStatus(prev => new Map(prev).set(resourceId, 'indexed'));
       
-      // Show user-friendly error message
+      // Check if this is a "knowledge base doesn't exist" error
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      if (errorMessage.includes('timeout') || errorMessage.includes('ETIMEDOUT')) {
-        console.warn('Unindexing failed due to timeout - Stack AI API may be slow');
+      
+      if (errorMessage.includes('Unable to create or access knowledge base') || 
+          errorMessage.includes('Internal Server Error') ||
+          errorMessage.includes('500')) {
+        // If KB doesn't exist, the file isn't really indexed anyway
+        console.log('💡 Knowledge base not accessible - treating file as successfully unindexed');
+        setFileIndexingStatus(prev => new Map(prev).set(resourceId, 'not_indexed'));
+        
+        // Remove from indexed files list
+        setIndexedFilePaths(prev => prev.filter(path => path !== resourcePath));
+      } else {
+        // For other errors, revert to indexed state
+        setFileIndexingStatus(prev => new Map(prev).set(resourceId, 'indexed'));
+        
+        if (errorMessage.includes('timeout') || errorMessage.includes('ETIMEDOUT')) {
+          console.warn('Unindexing failed due to timeout - Stack AI API may be slow');
+        }
       }
     }
   }, [connectionId, getOrCreateKnowledgeBase]);

@@ -1,10 +1,12 @@
 import { useState, useCallback } from 'react';
 import { Resource } from '@/lib/types';
+import { toast, TOAST_MESSAGES } from '@/lib/toast';
+import { FileStatus } from '@/hooks/use-file-status';
 
 interface UseResourceSelectionReturn {
   selectedResources: Resource[];
   selectedResourceIds: Set<string>;
-  toggleResourceSelection: (resource: Resource) => void;
+  toggleResourceSelection: (resource: Resource, getFileStatus?: (resourceId: string) => FileStatus) => void;
   clearSelection: () => void;
   isSelected: (resourceId: string) => boolean;
   getSelectedFiles: () => Resource[];
@@ -15,7 +17,16 @@ export function useResourceSelection(): UseResourceSelectionReturn {
   const [selectedResources, setSelectedResources] = useState<Resource[]>([]);
   const [selectedResourceIds, setSelectedResourceIds] = useState<Set<string>>(new Set());
 
-  const toggleResourceSelection = useCallback((resource: Resource) => {
+  const toggleResourceSelection = useCallback((resource: Resource, getFileStatus?: (resourceId: string) => FileStatus) => {
+    // Check if file is already synced
+    if (getFileStatus) {
+      const status = getFileStatus(resource.resource_id);
+      if (status === 'synced') {
+        toast.error(TOAST_MESSAGES.ALREADY_SYNCED);
+        return; // Don't allow selection of synced files
+      }
+    }
+
     setSelectedResources(prev => {
       const isCurrentlySelected = prev.some(r => r.resource_id === resource.resource_id);
       
@@ -37,7 +48,7 @@ export function useResourceSelection(): UseResourceSelectionReturn {
       }
       return newSet;
     });
-  }, []);
+  }, []); // Dependencies handled by the callback
 
   const clearSelection = useCallback(() => {
     setSelectedResources([]);

@@ -10,6 +10,21 @@ import { SimpleIndexingActions } from './SimpleIndexingActions';
 import { cn } from '@/lib/utils';
 import { useState } from 'react';
 
+const getFileIcon = (resource: Resource) => {
+  const isFolder = resource.inode_type === 'directory';
+  const fileName = resource.inode_path.path.split('/').pop() || 'Untitled';
+
+  if (isFolder) {
+    return <Folder className="w-5 h-5 text-gray-900" />;
+  }
+
+  if (fileName.endsWith('.pdf')) {
+    return <FileText className="w-5 h-5 text-red-500" />;
+  }
+
+  return <FileText className="w-5 h-5 text-gray-500" />;
+};
+
 interface FileListItemProps {
   resource: Resource;
   selected: boolean;
@@ -63,58 +78,53 @@ export function FileListItem({
     });
   };
 
+  const [isActive, setIsActive] = useState(false);
+
   const handleItemClick = () => {
     if (!isFolder) return;
-    
-    setClickCount(prev => prev + 1);
-    
+
     if (clickTimer) {
       clearTimeout(clickTimer);
-    }
-    
-    const timer = setTimeout(() => {
-      if (clickCount === 0) {
-        // Single click - select folder
+      setClickTimer(null);
+      // Double click
+      setIsActive(true);
+      setTimeout(() => onNavigate(), 150); // Navigate after a short delay for animation
+      setTimeout(() => setIsActive(false), 300); // Reset animation state
+    } else {
+      // Single click
+      const timer = setTimeout(() => {
         onSelect(!selected);
-      } else if (clickCount === 1) {
-        // Double click - navigate into folder
-        onNavigate();
-      }
-      setClickCount(0);
-    }, 300);
-    
-    setClickTimer(timer);
-  };
-
-  const getFileIcon = () => {
-    if (isFolder) {
-      return <Folder className="w-5 h-5 text-gray-900" />;
+        setClickTimer(null);
+      }, 250);
+      setClickTimer(timer);
     }
-    
-    // PDF files get a red icon
-    if (fileName.endsWith('.pdf')) {
-      return <FileText className="w-5 h-5 text-red-500" />;
-    }
-    
-    return <FileText className="w-5 h-5 text-gray-500" />;
   };
 
   return (
-    <div className="relative">
+    <div
+      className={cn(
+        'relative transform transition-transform duration-150',
+        isActive && 'scale-[0.98]'
+      )}
+      onMouseDown={(e) => {
+        if (isFolder) e.preventDefault();
+      }}
+    >
       {/* Full-width background for hover/selected states */}
-      <div 
+      <div
         className={cn(
-          "absolute inset-0 transition-colors",
-          "hover:bg-gray-100",
-          selected && "bg-blue-50 hover:bg-blue-100"
+          'absolute inset-0 transition-colors',
+          'hover:bg-gray-100',
+          selected && 'bg-blue-50 hover:bg-blue-100'
         )}
       />
-      
+
       {/* Content with table layout */}
-      <div 
+      <div
         className={cn(
-          "relative flex items-center space-x-4 py-3 px-6 transition-colors",
-          "border-b border-gray-100 last:border-b-0"
+          'relative flex items-center space-x-4 py-3 px-6 transition-colors',
+          'border-b border-gray-100 last:border-b-0',
+          'select-none'
         )}
       >
         {/* Checkbox */}
@@ -129,11 +139,11 @@ export function FileListItem({
         
         {/* File Icon */}
         <div className="w-5 flex justify-center">
-          {getFileIcon()}
+          {getFileIcon(resource)}
         </div>
         
         {/* File Name */}
-        <div 
+        <div
           className="flex-1 min-w-0 cursor-pointer"
           onClick={handleItemClick}
         >

@@ -17,9 +17,9 @@ export function SimpleIndexingBadge({ status }: SimpleIndexingBadgeProps) {
       );
     case 'synced':
       return (
-        <Badge variant="default" className="bg-green-100 text-green-800 border-green-200">
+        <Badge variant="default" className="bg-blue-100 text-blue-800 border-blue-200">
           <Star className="w-3 h-3 mr-1 fill-current" />
-          Synced
+          Indexed
         </Badge>
       );
     case 'indexing':
