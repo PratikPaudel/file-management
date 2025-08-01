@@ -6,6 +6,7 @@ import type {
   ResourcesResponse, 
   KnowledgeBase,
   CreateKnowledgeBaseParams,
+  BatchCreateKnowledgeBaseParams,
   GetConnectionFilesParams,
   GetKnowledgeBaseStatusParams,
   IndexResourceParams,
@@ -34,32 +35,54 @@ class ApiClient {
 
   // Authentication
   async authenticate(): Promise<AuthHeaders> {
+    console.log('🔍 ApiClient.authenticate() called');
     this.initialize();
     
     // Call our secure, server-side authentication endpoint
+    console.log('📡 Making auth request to /api/auth');
     const response = await fetch('/api/auth', {
       method: 'POST',
     });
 
+    console.log('📡 Auth response status:', response.status);
+
     if (!response.ok) {
       const errorData = await response.json();
+      console.log('❌ Auth failed:', errorData);
       throw new Error(`Authentication failed: ${errorData.message || response.statusText}`);
     }
 
     const authHeaders = await response.json();
+    console.log('✅ Auth successful, got headers');
     this.authHeaders = authHeaders;
     return authHeaders;
   }
 
   // Generic request method
   private async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+    console.log('🔍 ApiClient.request() called with endpoint:', endpoint);
     this.initialize();
     
     if (!this.authHeaders) {
+      console.log('🔐 No auth headers, authenticating...');
       await this.authenticate();
+    } else {
+      console.log('✅ Auth headers already available');
     }
 
-    const url = `${API_CONFIG.BASE_URL}${endpoint}`;
+    // If endpoint starts with /api/, it's a Next.js API route - use relative URL
+    // Otherwise, it's a direct Stack AI API call - use full URL
+    const url = endpoint.startsWith('/api/') 
+      ? endpoint 
+      : `${API_CONFIG.BASE_URL}${endpoint}`;
+    
+    console.log('📡 Making request to:', url);
+    console.log('📝 Request headers:', {
+      'Content-Type': 'application/json',
+      ...this.authHeaders,
+      ...options.headers,
+    });
+
     const response = await fetch(url, {
       ...options,
       headers: {
@@ -69,7 +92,10 @@ class ApiClient {
       },
     });
 
+    console.log('📡 Response status:', response.status);
+
     if (!response.ok) {
+      console.log('❌ Request failed with status:', response.status, response.statusText);
       const error: ApiError = {
         message: `API request failed: ${response.statusText}`,
         status: response.status,
@@ -77,12 +103,15 @@ class ApiClient {
       throw error;
     }
 
-    return response.json();
+    const data = await response.json();
+    console.log('✅ Request successful, got data');
+    return data;
   }
 
   // Get current organization
   async getCurrentOrganization(): Promise<{ org_id: string }> {
-    return this.request('/organizations/me/current');
+    console.log('🔍 ApiClient.getCurrentOrganization() called');
+    return this.request('/api/organizations/me/current');
   }
 
   // Get connections
@@ -111,7 +140,7 @@ class ApiClient {
   }
 
   async getConnectionFiles({ connectionId, resourceId }: GetConnectionFilesParams): Promise<ResourcesResponse> {
-    const endpoint = `/connections/${connectionId}/resources/children`;
+    const endpoint = `/api/connections/${connectionId}/resources/children`;
     const params = resourceId ? `?${new URLSearchParams({ resource_id: resourceId })}` : '';
     return this.request(`${endpoint}${params}`);
   }
@@ -119,23 +148,43 @@ class ApiClient {
   async getConnectionResource(connectionId: string, resourceIds: string[]): Promise<Resource[]> {
     const params = new URLSearchParams();
     resourceIds.forEach(id => params.append('resource_ids', id));
-    return this.request(`/connections/${connectionId}/resources?${params}`);
+    return this.request(`/api/connections/${connectionId}/resources?${params}`);
   }
 
   // Knowledge Base endpoints
   async getKnowledgeBases(): Promise<KnowledgeBase[]> {
-    return this.request('/knowledge_bases');
+    console.log('🔍 ApiClient.getKnowledgeBases() called');
+    return this.request('/api/knowledge-bases');
   }
 
   async createKnowledgeBase(data: CreateKnowledgeBaseParams): Promise<KnowledgeBase> {
-    return this.request('/knowledge_bases', {
+    console.log('🔍 ApiClient.createKnowledgeBase() called with data:', data);
+    return this.request('/api/knowledge-bases', {
       method: 'POST',
       body: JSON.stringify(data),
     });
   }
 
+  // Batch Knowledge Base Creation - following exact notebook workflow
+  async createBatchKnowledgeBase(data: BatchCreateKnowledgeBaseParams): Promise<KnowledgeBase> {
+    console.log('🔍 ApiClient.createBatchKnowledgeBase() called with data:', data);
+    
+    // Transform to match app/ implementation format
+    const payload = {
+      connectionId: data.connectionId,
+      connectionSourceIds: data.connectionSourceIds,
+      name: data.name,
+      description: data.description || `Knowledge base for selected resources`,
+    };
+    
+    return this.request('/api/knowledge-bases', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  }
+
   async syncKnowledgeBase(knowledgeBaseId: string, orgId: string): Promise<void> {
-    return this.request(`/knowledge_bases/sync/trigger/${knowledgeBaseId}/${orgId}`);
+    return this.request(`/api/knowledge-bases/sync/trigger/${knowledgeBaseId}/${orgId}`);
   }
 
   async getKnowledgeBaseFiles(knowledgeBaseId: string, resourcePath: string = '/'): Promise<ResourcesResponse> {
@@ -144,21 +193,25 @@ class ApiClient {
   }
 
   async indexResource({ knowledgeBaseId, connectionId, resourceId, orgId }: IndexResourceParams): Promise<void> {
-    // First, add the resource to the KB's connection_source_ids if not already there
-    // Then trigger sync - the backend will handle finding and indexing the specific resource
-    return this.request(`/knowledge_bases/sync/trigger/${knowledgeBaseId}/${orgId}`);
-  }
-
-  async deindexResource({ knowledgeBaseId, resourcePath }: DeindexResourceParams): Promise<void> {
-    const params = new URLSearchParams({ resource_path: resourcePath });
-    return this.request(`/knowledge_bases/${knowledgeBaseId}/resources?${params}`, {
-      method: 'DELETE',
+    return this.request('/api/knowledge-base/index', {
+      method: 'POST',
+      body: JSON.stringify({ knowledgeBaseId, connectionId, resourceId, orgId }),
     });
   }
 
-  async getKnowledgeBaseStatus({ knowledgeBaseId, resourcePath = '/' }: GetKnowledgeBaseStatusParams): Promise<ResourcesResponse> {
-    // Get KB files at the specified path to check status
-    return this.getKnowledgeBaseFiles(knowledgeBaseId, resourcePath);
+  async deindexResource({ knowledgeBaseId, resourcePath }: DeindexResourceParams): Promise<void> {
+    return this.request('/api/knowledge-base/unindex', {
+      method: 'POST',
+      body: JSON.stringify({ knowledgeBaseId, resourcePath }),
+    });
+  }
+
+  async getKnowledgeBaseStatus({ knowledgeBaseId, resourcePath = '/' }: GetKnowledgeBaseStatusParams): Promise<{ indexedFilePaths: string[] }> {
+    const params = new URLSearchParams({ 
+      knowledge_base_id: knowledgeBaseId, 
+      resource_path: resourcePath 
+    });
+    return this.request(`/api/knowledge-base/status?${params}`);
   }
 
   // Get user profile for email-based KB naming
@@ -181,6 +234,7 @@ export const api = {
   getConnectionResource: (connectionId: string, resourceIds: string[]) => apiClient.getConnectionResource(connectionId, resourceIds),
   getKnowledgeBases: () => apiClient.getKnowledgeBases(),
   createKnowledgeBase: (data: CreateKnowledgeBaseParams) => apiClient.createKnowledgeBase(data),
+  createBatchKnowledgeBase: (data: BatchCreateKnowledgeBaseParams) => apiClient.createBatchKnowledgeBase(data),
   syncKnowledgeBase: (knowledgeBaseId: string, orgId: string) => apiClient.syncKnowledgeBase(knowledgeBaseId, orgId),
   getKnowledgeBaseFiles: (knowledgeBaseId: string, resourcePath?: string) => apiClient.getKnowledgeBaseFiles(knowledgeBaseId, resourcePath),
   indexResource: (params: IndexResourceParams) => apiClient.indexResource(params),

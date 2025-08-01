@@ -4,9 +4,9 @@ import { Folder, FileText } from 'lucide-react';
 import { Resource, FileAction } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
-import { IndexStatusBadge } from '@/components/knowledge-base/IndexStatusBadge';
-import { KnowledgeBaseActions } from '@/components/knowledge-base/KnowledgeBaseActions';
-import { useKnowledgeBaseOperations } from '@/hooks/use-knowledge-base';
+import { IndexingStatus } from '@/hooks/use-file-indexing';
+import { SimpleIndexingBadge } from './SimpleIndexingBadge';
+import { SimpleIndexingActions } from './SimpleIndexingActions';
 import { cn } from '@/lib/utils';
 import { useState } from 'react';
 
@@ -17,6 +17,9 @@ interface FileListItemProps {
   onNavigate: () => void;
   onAction: (action: FileAction) => void;
   connectionId: string;
+  indexingStatus: IndexingStatus;
+  onIndexFile: (file: Resource) => Promise<void>;
+  onUnindexFile: (file: Resource) => Promise<void>;
 }
 
 export function FileListItem({
@@ -26,33 +29,27 @@ export function FileListItem({
   onNavigate,
   onAction,
   connectionId,
+  indexingStatus,
+  onIndexFile,
+  onUnindexFile,
 }: FileListItemProps) {
   const [clickCount, setClickCount] = useState(0);
   const [clickTimer, setClickTimer] = useState<NodeJS.Timeout | null>(null);
-  
-  // Knowledge Base operations
-  const {
-    indexResource,
-    deindexResource,
-    getResourceStatus,
-  } = useKnowledgeBaseOperations(connectionId);
-  
-  const kbStatus = getResourceStatus(resource.resource_id);
   
   const isFolder = resource.inode_type === 'directory';
   const fileName = resource.inode_path.path.split('/').pop() || 'Untitled';
 
   // KB action handlers
   const handleIndex = () => {
-    indexResource(resource);
+    onIndexFile(resource);
   };
 
   const handleDeindex = () => {
-    deindexResource(resource);
+    onUnindexFile(resource);
   };
 
   const handleRetry = () => {
-    indexResource(resource);
+    onIndexFile(resource);
   };
   
   // Format date for display
@@ -154,12 +151,12 @@ export function FileListItem({
         
         {/* Knowledge Base Status and Actions */}
         <div className="w-40 flex items-center justify-end gap-2">
-          <IndexStatusBadge status={kbStatus} />
-          <KnowledgeBaseActions
+          <SimpleIndexingBadge status={indexingStatus} />
+          <SimpleIndexingActions
             resource={resource}
-            status={kbStatus}
+            status={indexingStatus}
             onIndex={handleIndex}
-            onDeindex={handleDeindex}
+            onUnindex={handleDeindex}
             onRetry={handleRetry}
           />
         </div>

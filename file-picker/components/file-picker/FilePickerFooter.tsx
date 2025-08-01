@@ -2,17 +2,24 @@
 
 import { Info } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { BatchIndexingActions } from '@/components/file-picker/BatchIndexingActions';
+import { KnowledgeBaseStatus } from '@/hooks/use-batch-knowledge-base';
 
 interface FilePickerFooterProps {
   selectedCount: number;
   onCancel: () => void;
-  onSelect: () => void;
+  // Batch knowledge base props
+  knowledgeBaseStatus: KnowledgeBaseStatus;
+  onCreateKnowledgeBase: () => void;
+  onTriggerSync: () => void;
 }
 
 export function FilePickerFooter({
   selectedCount,
   onCancel,
-  onSelect,
+  knowledgeBaseStatus,
+  onCreateKnowledgeBase,
+  onTriggerSync,
 }: FilePickerFooterProps) {
   return (
     <div className="flex items-center justify-between px-6 py-4 border-t border-gray-200 bg-gray-50">
@@ -22,7 +29,7 @@ export function FilePickerFooter({
         <span>We recommend selecting as few items as needed.</span>
       </div>
       
-      {/* Right Side - Action Buttons */}
+      {/* Right Side - Batch Actions */}
       <div className="flex items-center space-x-3">
         <Button 
           variant="ghost" 
@@ -33,14 +40,13 @@ export function FilePickerFooter({
           Cancel
         </Button>
         
-        <Button 
-          size="sm"
-          onClick={onSelect}
-          disabled={selectedCount === 0}
-          className="bg-gray-900 hover:bg-gray-800 text-white"
-        >
-          Select {selectedCount}
-        </Button>
+        <BatchIndexingActions
+          selectedCount={selectedCount}
+          knowledgeBaseStatus={knowledgeBaseStatus}
+          error={null}
+          onCreateKnowledgeBase={onCreateKnowledgeBase}
+          onTriggerSync={onTriggerSync}
+        />
       </div>
     </div>
   );

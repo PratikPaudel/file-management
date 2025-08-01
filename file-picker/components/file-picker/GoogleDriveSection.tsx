@@ -55,7 +55,7 @@ export function GoogleDriveSection({
             <div className="text-sm font-medium text-gray-900">
               Google Drive {currentPath && `/ ${currentPath}`}
             </div>
-            <div className="text-xs text-gray-500">stackaitest@gmail.com</div>
+                          <div className="text-xs text-gray-500">stackaitest@gmail.com</div>
           </div>
         </div>
         

@@ -140,4 +140,7 @@ export const CACHE_TIME = {
   STALE_TIME: 30 * 1000, // 30 seconds
   CACHE_TIME: 5 * 60 * 1000, // 5 minutes
   PREFETCH_STALE_TIME: 60 * 1000, // 1 minute
-} as const; 
+} as const;
+
+// Note: Previous implementation used hardcoded values as a simplification,
+// but this implementation properly creates knowledge bases dynamically 

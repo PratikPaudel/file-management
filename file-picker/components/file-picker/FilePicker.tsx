@@ -3,12 +3,18 @@
 import { useState, useMemo, useCallback, useEffect } from 'react';
 import { FilePickerProps, ViewMode, Resource, SortDirection } from '@/lib/types';
 import { useConnectionFiles } from '@/hooks/use-connection';
+// import { useFileIndexing, IndexingStatus } from '@/hooks/use-file-indexing'; // Replaced with batch workflow
 
 import { FilePickerHeader } from '@/components/file-picker/FilePickerHeader';
 import { FileListControls } from '@/components/file-picker/FileListControls';
 import { FileList } from '@/components/file-picker/FileList';
 import { FileGrid } from '@/components/file-picker/FileGrid';
 import { FilePickerFooter } from '@/components/file-picker/FilePickerFooter';
+// BatchIndexingActions now imported in Footer
+import { useBatchKnowledgeBase } from '@/hooks/use-batch-knowledge-base';
+import { useResourceSelection } from '@/hooks/use-resource-selection';
+import { useFileStatus } from '@/hooks/use-file-status';
+import { useKnowledgeBasePersistence } from '@/hooks/use-knowledge-base-persistence';
 
 interface BreadcrumbItem {
   name: string;
@@ -53,6 +59,60 @@ export function FilePicker({
     connectionId,
     resourceId: currentResourceId,
   });
+
+  // Get raw files from API
+  const rawFiles = filesData?.data || [];
+  
+  // New batch knowledge base workflow following Knowledge_Base_Workflow.ipynb
+  const {
+    status: knowledgeBaseStatus,
+    error: knowledgeBaseError,
+    createKnowledgeBaseWithResources,
+    triggerSync,
+    resetKnowledgeBase,
+    setKnowledgeBaseId,
+    setStatus,
+  } = useBatchKnowledgeBase({ connectionId });
+
+  // Resource selection for batch operations
+  const {
+    selectedResources,
+    selectedResourceIds,
+    toggleResourceSelection,
+    clearSelection,
+    getSelectedFiles,
+  } = useResourceSelection();
+
+  // Individual file status tracking
+  const {
+    fileStatuses,
+    setFileStatus,
+    setMultipleFileStatuses,
+    getFileStatus,
+  } = useFileStatus();
+
+  // Remove from here - will add after files is declared
+
+  // Convert FileStatus to IndexingStatus with synced support
+  const convertedFileStatuses = useMemo(() => {
+    const converted = new Map<string, 'indexed' | 'not_indexed' | 'indexing' | 'unindexing' | 'synced'>();
+    fileStatuses.forEach((status, resourceId) => {
+      switch (status) {
+        case 'not_indexed':
+          converted.set(resourceId, 'not_indexed');
+          break;
+        case 'indexed':
+          converted.set(resourceId, 'indexed');
+          break;
+        case 'synced':
+          converted.set(resourceId, 'synced');
+          break;
+        default:
+          converted.set(resourceId, 'not_indexed');
+      }
+    });
+    return converted;
+  }, [fileStatuses]);
 
   // Helper functions for filtering
   const getFileExtension = useCallback((fileName: string): string => {
@@ -165,6 +225,15 @@ export function FilePicker({
     return Array.from(extensions).sort();
   }, [filesData?.data, getFileExtension]);
 
+  // Knowledge base persistence - restore status on refresh (after files is calculated)
+  useKnowledgeBasePersistence({
+    connectionId,
+    files,
+    setMultipleFileStatuses,
+    setKnowledgeBaseId,
+    setStatus,
+  });
+
   const allSelected = files.length > 0 && selectedIds.size === files.length;
   const someSelected = selectedIds.size > 0 && selectedIds.size < files.length;
 
@@ -187,8 +256,17 @@ export function FilePicker({
 
   const handleSelectionChange = (newSelectedIds: Set<string>) => {
     setSelectedIds(newSelectedIds);
+    
+    // Update batch resource selection
+    const selectedFiles = files.filter(file => newSelectedIds.has(file.resource_id));
+    
+    // Clear existing selection and add new ones
+    clearSelection();
+    selectedFiles.forEach(file => {
+      toggleResourceSelection(file);
+    });
+    
     if (onSelectionChange) {
-      const selectedFiles = files.filter(file => newSelectedIds.has(file.resource_id));
       onSelectionChange(selectedFiles);
     }
   };
@@ -224,6 +302,38 @@ export function FilePicker({
     // TODO: Implement actual actions
   };
 
+  // Handle batch knowledge base operations following Knowledge_Base_Workflow.ipynb
+  const handleCreateKnowledgeBase = useCallback(async () => {
+    const filesToIndex = getSelectedFiles();
+    if (filesToIndex.length === 0) {
+      alert('Please select at least one file to index');
+      return;
+    }
+    
+    await createKnowledgeBaseWithResources(selectedResources, (resourceIds, status) => {
+      setMultipleFileStatuses(resourceIds, status);
+    });
+  }, [selectedResources, getSelectedFiles, createKnowledgeBaseWithResources, setMultipleFileStatuses]);
+
+  const handleTriggerSync = useCallback(async () => {
+    await triggerSync((resourceIds, status) => {
+      setMultipleFileStatuses(resourceIds, status);
+    });
+    
+    // Update all files in the knowledge base to 'synced' status
+    // Since we don't track which specific files are in the KB, 
+    // we'll update all files that are currently 'indexed'
+    const fileResourceIds = files
+      .filter(file => getFileStatus(file.resource_id) === 'indexed')
+      .map(file => file.resource_id);
+    
+    if (fileResourceIds.length > 0) {
+      setMultipleFileStatuses(fileResourceIds, 'synced');
+    }
+  }, [triggerSync, setMultipleFileStatuses, files, getFileStatus]);
+
+  // Removed handleNewKnowledgeBase - no longer supporting multiple KBs
+
   const handleCancel = () => {
     setSelectedIds(new Set());
     if (onSelectionChange) {
@@ -245,7 +355,7 @@ export function FilePicker({
         allSelected={allSelected}
         someSelected={someSelected}
         onSelectAll={handleSelectAll}
-        selectedCount={selectedIds.size}
+        selectedCount={selectedResourceIds.size}
         viewMode={viewMode}
         onViewModeChange={setViewMode}
         breadcrumbs={breadcrumbs}
@@ -274,8 +384,41 @@ export function FilePicker({
         isTypeFilterActive={isTypeFilterActive}
       />
       
+      {/* Status Messages - Only show at top when needed */}
+      {knowledgeBaseError && (
+        <div className="px-6 py-3 border-b bg-red-50">
+          <p className="text-sm text-red-600">
+            {knowledgeBaseError}
+          </p>
+        </div>
+      )}
+      {knowledgeBaseStatus === 'created' && (
+        <div className="px-6 py-3 border-b bg-blue-50">
+          <p className="text-sm text-blue-600">
+            Files added to knowledge base. Click &ldquo;Sync&rdquo; in the footer to process them for search.
+          </p>
+        </div>
+      )}
+      {knowledgeBaseStatus === 'synced' && (
+        <div className="px-6 py-3 border-b bg-green-50">
+          <p className="text-sm text-green-600">
+            Files synced successfully! Your files are now searchable.
+          </p>
+        </div>
+      )}
+
       {/* File List or Grid */}
       <div className="flex-1 overflow-auto">
+        {files.length === 0 && !isLoading && (
+          <div className="flex flex-col items-center justify-center h-64 text-gray-500">
+            <div className="text-center space-y-2">
+              <h3 className="text-lg font-medium text-gray-900">No files available</h3>
+              <p className="text-sm">
+                Connect to a data source or navigate to a folder with files to get started.
+              </p>
+            </div>
+          </div>
+        )}
         {viewMode === 'list' ? (
           <FileList
             files={files}
@@ -291,6 +434,9 @@ export function FilePicker({
             isSearchActive={isSearchActive}
             searchQuery={debouncedSearchQuery}
             connectionId={connectionId}
+            fileIndexingStatus={convertedFileStatuses}
+            onIndexFile={async () => {}} // Batch mode - no individual actions
+            onUnindexFile={async () => {}} // Batch mode - no individual actions
           />
         ) : (
           <FileGrid
@@ -302,15 +448,20 @@ export function FilePicker({
             onNavigate={handleNavigate}
             onAction={handleAction}
             connectionId={connectionId}
+            fileIndexingStatus={convertedFileStatuses}
+            onIndexFile={async () => {}} // Batch mode - no individual actions
+            onUnindexFile={async () => {}} // Batch mode - no individual actions
           />
         )}
       </div>
       
       {/* Footer */}
       <FilePickerFooter
-        selectedCount={selectedIds.size}
+        selectedCount={selectedResourceIds.size}
         onCancel={handleCancel}
-        onSelect={handleSelect}
+        knowledgeBaseStatus={knowledgeBaseStatus}
+        onCreateKnowledgeBase={handleCreateKnowledgeBase}
+        onTriggerSync={handleTriggerSync}
       />
     </div>
   );

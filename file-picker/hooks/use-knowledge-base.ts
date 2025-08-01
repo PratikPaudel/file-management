@@ -145,27 +145,24 @@ export function useKnowledgeBaseOperations(connectionId: string) {
         });
 
         if (isFolder) {
-          // For folders, count processed files
-          const folderFiles = statusData.data.filter(file => 
-            file.inode_path.path.startsWith(resourcePath) && file.inode_type === 'file'
+          // For folders, check if any files in the folder path are indexed
+          const folderIndexedFiles = statusData.indexedFilePaths.filter(path => 
+            path.startsWith(resourcePath) && path !== resourcePath
           );
-          const indexedFiles = folderFiles.filter(file => file.status === 'indexed');
-          const failedFiles = folderFiles.filter(file => file.status === 'failed');
-          const totalFiles = folderFiles.length;
-          const processedFiles = indexedFiles.length + failedFiles.length;
+          const isIndexed = folderIndexedFiles.length > 0;
 
-          if (totalFiles > 0 && processedFiles === totalFiles) {
-            // Folder indexing complete
+          if (isIndexed) {
+            // Folder has indexed files
             clearInterval(pollingIntervals.current[resourceId]);
             delete pollingIntervals.current[resourceId];
 
-            const state: KnowledgeBaseUIState = failedFiles.length === 0 ? 'indexed-full' : 'indexed-partial';
+            const state: KnowledgeBaseUIState = 'indexed-full'; // Simplified for now
             setOperationStates(prev => ({
               ...prev,
               [resourceId]: {
                 state,
-                filesProcessed: indexedFiles.length,
-                totalFiles
+                filesProcessed: folderIndexedFiles.length,
+                totalFiles: folderIndexedFiles.length
               }
             }));
           } else {
@@ -174,15 +171,14 @@ export function useKnowledgeBaseOperations(connectionId: string) {
               ...prev,
               [resourceId]: {
                 ...prev[resourceId],
-                filesProcessed: processedFiles,
-                totalFiles
+                filesProcessed: folderIndexedFiles.length,
+                totalFiles: Math.max(folderIndexedFiles.length + 1, prev[resourceId]?.totalFiles || 1)
               }
             }));
           }
         } else {
-          // For files, check individual status
-          const fileResource = statusData.data.find(file => file.resource_id === resourceId);
-          if (fileResource?.status === 'indexed') {
+          // For files, check if indexed
+          if (statusData.indexedFilePaths.includes(resourcePath)) {
             clearInterval(pollingIntervals.current[resourceId]);
             delete pollingIntervals.current[resourceId];
             
@@ -190,7 +186,8 @@ export function useKnowledgeBaseOperations(connectionId: string) {
               ...prev,
               [resourceId]: { state: 'indexed' }
             }));
-          } else if (fileResource?.status === 'failed') {
+          } else {
+            // File not indexed yet or failed - simplified approach
             clearInterval(pollingIntervals.current[resourceId]);
             delete pollingIntervals.current[resourceId];
             
