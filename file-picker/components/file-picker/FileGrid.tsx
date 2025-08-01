@@ -1,6 +1,7 @@
 'use client';
 
 import { Resource, FileAction } from '@/lib/types';
+import { IndexingStatus } from '@/hooks/use-file-indexing';
 import { FileGridItem } from './FileGridItem';
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -13,6 +14,9 @@ interface FileGridProps {
   onNavigate: (resourceId: string) => void;
   onAction: (action: FileAction) => void;
   connectionId: string;
+  fileIndexingStatus: Map<string, IndexingStatus>;
+  onIndexFile: (file: Resource) => Promise<void>;
+  onUnindexFile: (file: Resource) => Promise<void>;
 }
 
 export function FileGrid({
@@ -23,6 +27,9 @@ export function FileGrid({
   onNavigate,
   onAction,
   connectionId,
+  fileIndexingStatus,
+  onIndexFile,
+  onUnindexFile,
 }: FileGridProps) {
   const handleSelection = (resourceId: string, selected: boolean) => {
     const newSelected = new Set(selectedIds);
@@ -69,6 +76,9 @@ export function FileGrid({
             onNavigate={() => onNavigate(file.resource_id)}
             onAction={(action) => onAction(action)}
             connectionId={connectionId}
+            indexingStatus={fileIndexingStatus.get(file.resource_id) || 'not_indexed'}
+            onIndexFile={onIndexFile}
+            onUnindexFile={onUnindexFile}
           />
         ))}
       </div>

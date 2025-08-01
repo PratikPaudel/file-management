@@ -3,9 +3,9 @@
 import { Folder, FileText } from 'lucide-react';
 import { Resource, FileAction } from '@/lib/types';
 import { Checkbox } from '@/components/ui/checkbox';
-import { IndexStatusBadge } from '@/components/knowledge-base/IndexStatusBadge';
-import { KnowledgeBaseActions } from '@/components/knowledge-base/KnowledgeBaseActions';
-import { useKnowledgeBaseOperations } from '@/hooks/use-knowledge-base';
+import { IndexingStatus } from '@/hooks/use-file-indexing';
+import { SimpleIndexingBadge } from './SimpleIndexingBadge';
+import { SimpleIndexingActions } from './SimpleIndexingActions';
 import { cn } from '@/lib/utils';
 import { useState } from 'react';
 import { ResourceStatusPoller } from '@/components/knowledge-base/ResourceStatusPoller';
@@ -17,6 +17,9 @@ interface FileListItemProps {
   onNavigate: () => void;
   onAction: (action: FileAction) => void;
   connectionId: string;
+  indexingStatus: IndexingStatus;
+  onIndexFile: (file: Resource) => Promise<void>;
+  onUnindexFile: (file: Resource) => Promise<void>;
 }
 
 export function FileListItem({
@@ -26,6 +29,9 @@ export function FileListItem({
   onNavigate,
 
   connectionId,
+  indexingStatus,
+  onIndexFile,
+  onUnindexFile,
 }: FileListItemProps) {
   const [clickCount, setClickCount] = useState(0);
   const [clickTimer, setClickTimer] = useState<NodeJS.Timeout | null>(null);
@@ -45,15 +51,15 @@ export function FileListItem({
 
   // KB action handlers
   const handleIndex = () => {
-    indexResource(resource);
+    onIndexFile(resource);
   };
 
   const handleDeindex = () => {
-    deindexResource(resource);
+    onUnindexFile(resource);
   };
 
   const handleRetry = () => {
-    indexResource(resource);
+    onIndexFile(resource);
   };
   
   // Format date for display
@@ -67,18 +73,21 @@ export function FileListItem({
     });
   };
 
+  const [isActive, setIsActive] = useState(false);
+
   const handleItemClick = () => {
     if (!isFolder) return;
-    
-    setClickCount(prev => prev + 1);
-    
+
     if (clickTimer) {
       clearTimeout(clickTimer);
-    }
-    
-    const timer = setTimeout(() => {
-      if (clickCount === 0) {
-        // Single click - select folder
+      setClickTimer(null);
+      // Double click
+      setIsActive(true);
+      setTimeout(() => onNavigate(), 150); // Navigate after a short delay for animation
+      setTimeout(() => setIsActive(false), 300); // Reset animation state
+    } else {
+      // Single click
+      const timer = setTimeout(() => {
         onSelect(!selected);
       } else if (clickCount === 1) {
         // Double click - navigate into folder and trigger animation
@@ -115,7 +124,7 @@ export function FileListItem({
         isAnimating && "animate-scale-click"
       )}>
       {/* Full-width background for hover/selected states */}
-      <div 
+      <div
         className={cn(
           "absolute inset-0",
           "transition-all duration-150",
@@ -123,12 +132,13 @@ export function FileListItem({
           selected && "bg-blue-50 hover:bg-blue-100/90"
         )}
       />
-      
+
       {/* Content with table layout */}
-      <div 
+      <div
         className={cn(
-          "relative flex items-center space-x-4 py-3 px-6 transition-colors",
-          "border-b border-gray-100 last:border-b-0"
+          'relative flex items-center space-x-4 py-3 px-6 transition-colors',
+          'border-b border-gray-100 last:border-b-0',
+          'select-none'
         )}
       >
         {/* Checkbox */}
@@ -143,11 +153,11 @@ export function FileListItem({
         
         {/* File Icon */}
         <div className="w-5 flex justify-center">
-          {getFileIcon()}
+          {getFileIcon(resource)}
         </div>
         
         {/* File Name */}
-        <div 
+        <div
           className="flex-1 min-w-0 cursor-pointer"
           onClick={handleItemClick}
         >
@@ -165,12 +175,12 @@ export function FileListItem({
         
         {/* Knowledge Base Status and Actions */}
         <div className="w-40 flex items-center justify-end gap-2">
-          <IndexStatusBadge status={kbStatus} />
-          <KnowledgeBaseActions
+          <SimpleIndexingBadge status={indexingStatus} />
+          <SimpleIndexingActions
             resource={resource}
-            status={kbStatus}
+            status={indexingStatus}
             onIndex={handleIndex}
-            onDeindex={handleDeindex}
+            onUnindex={handleDeindex}
             onRetry={handleRetry}
           />
         </div>

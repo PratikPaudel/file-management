@@ -77,6 +77,14 @@ export interface CreateKnowledgeBaseParams {
   cron_job_id?: string | null;
 }
 
+// Batch Knowledge Base Creation - following exact notebook workflow
+export interface BatchCreateKnowledgeBaseParams {
+  connectionId: string;
+  connectionSourceIds: string[];
+  name: string;
+  description?: string;
+}
+
 export interface ResourcesResponse {
   data: Resource[];
   total: number;

@@ -2,6 +2,7 @@
 
 import { ChevronUp, ChevronDown } from 'lucide-react';
 import { Resource, FileAction, SortDirection } from '@/lib/types';
+import { IndexingStatus } from '@/hooks/use-file-indexing';
 import { FileListItem } from './FileListItem';
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -20,6 +21,9 @@ interface FileListProps {
   isSearchActive?: boolean;
   searchQuery?: string;
   connectionId: string;
+  fileIndexingStatus: Map<string, IndexingStatus>;
+  onIndexFile: (file: Resource) => Promise<void>;
+  onUnindexFile: (file: Resource) => Promise<void>;
 }
 
 export function FileList({
@@ -36,6 +40,9 @@ export function FileList({
   isSearchActive = false,
   searchQuery = '',
   connectionId,
+  fileIndexingStatus,
+  onIndexFile,
+  onUnindexFile,
 }: FileListProps) {
   const handleSelection = (resourceId: string, selected: boolean) => {
     const newSelected = new Set(selectedIds);
@@ -208,6 +215,9 @@ export function FileList({
             onNavigate={() => onNavigate(file.resource_id)}
             onAction={(action) => onAction(action)}
             connectionId={connectionId}
+            indexingStatus={fileIndexingStatus.get(file.resource_id) || 'not_indexed'}
+            onIndexFile={onIndexFile}
+            onUnindexFile={onUnindexFile}
           />
         ))}
       </div>

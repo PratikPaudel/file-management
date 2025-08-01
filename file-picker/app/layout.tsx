@@ -33,6 +33,7 @@ export default function RootLayout({
           {children}
           <Toaster />
         </QueryProvider>
+        <Toaster position="bottom-center" />
       </body>
     </html>
   );
