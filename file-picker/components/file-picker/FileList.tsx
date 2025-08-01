@@ -20,9 +20,7 @@ interface FileListProps {
   onSort?: (column: string) => void;
   isSearchActive?: boolean;
   searchQuery?: string;
-  connectionId: string;
   fileIndexingStatus: Map<string, IndexingStatus>;
-  onIndexFile: (file: Resource) => Promise<void>;
   onUnindexFile: (file: Resource) => Promise<void>;
 }
 
@@ -39,9 +37,7 @@ export function FileList({
   onSort,
   isSearchActive = false,
   searchQuery = '',
-  connectionId,
   fileIndexingStatus,
-  onIndexFile,
   onUnindexFile,
 }: FileListProps) {
   const handleSelection = (resourceId: string, selected: boolean) => {
@@ -214,9 +210,7 @@ export function FileList({
             onSelect={(selected) => handleSelection(file.resource_id, selected)}
             onNavigate={() => onNavigate(file.resource_id)}
             onAction={(action) => onAction(action)}
-            connectionId={connectionId}
             indexingStatus={fileIndexingStatus.get(file.resource_id) || 'not_indexed'}
-            onIndexFile={onIndexFile}
             onUnindexFile={onUnindexFile}
           />
         ))}

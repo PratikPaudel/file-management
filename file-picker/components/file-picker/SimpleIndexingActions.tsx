@@ -1,22 +1,16 @@
-import { Plus, Trash2, RotateCw } from 'lucide-react';
+import { Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { IndexingStatus } from '@/hooks/use-file-indexing';
-import { Resource } from '@/lib/types';
+
 
 interface SimpleIndexingActionsProps {
-  resource: Resource;
   status: IndexingStatus;
-  onIndex: () => void;
   onUnindex: () => void;
-  onRetry: () => void;
 }
 
 export function SimpleIndexingActions({
-  resource,
   status,
-  onIndex,
   onUnindex,
-  onRetry,
 }: SimpleIndexingActionsProps) {
   if (status === 'indexing' || status === 'unindexing') {
     // Show nothing while processing

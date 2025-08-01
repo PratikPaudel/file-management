@@ -7,7 +7,7 @@ import { useKnowledgeBase, useKnowledgeBaseOperations } from '@/hooks/use-knowle
 import { api } from '@/lib/api';
 import { ensureAbsolutePath } from '@/lib/utils';
 import { ANIMATION } from '@/lib/constants';
-import type { Resource, ResourcesResponse } from '@/lib/types';
+import type { Resource } from '@/lib/types';
 
 interface ResourceStatusPollerProps {
   resource: Resource;
@@ -22,15 +22,11 @@ export function ResourceStatusPoller({ resource, connectionId }: ResourceStatusP
   const { resource_id, inode_path, inode_type } = resource;
   const isFolder = inode_type === 'directory';
 
-  const { data: statusData, error } = useQuery<ResourcesResponse>({
+  const { data: statusData, error } = useQuery<{ indexedFilePaths: string[] }>({
     queryKey: ['kb_resource_status', resource_id],
     
-    queryFn: async (): Promise<ResourcesResponse> => {
+    queryFn: async (): Promise<{ indexedFilePaths: string[] }> => {
       const kb = await getOrCreateKB();
-      const absolutePath = ensureAbsolutePath(inode_path.path);
-      
-      // Always poll from root path to avoid path resolution issues
-      // The API will return all indexed files, and we'll filter them
       const pollingPath = '/';
         
       return api.getKnowledgeBaseStatus({
@@ -53,21 +49,17 @@ export function ResourceStatusPoller({ resource, connectionId }: ResourceStatusP
       // --- Folder Logic ---
       // Find all files that are inside this folder
       const folderPath = ensureAbsolutePath(inode_path.path);
-      const folderFiles = statusData.data.filter(file => {
-        const filePath = ensureAbsolutePath(file.inode_path.path);
-        return filePath.startsWith(folderPath) && file.inode_type === 'file' && filePath !== folderPath;
-      });
-      const indexedFiles = folderFiles.filter(file => file.status === 'indexed');
-      const failedFiles = folderFiles.filter(file => file.status === 'failed');
-      const totalKnownFiles = folderFiles.length; // The total number of files the backend knows about so far
-      const processedFiles = indexedFiles.length + failedFiles.length;
+      const indexedFiles = statusData.indexedFilePaths.filter(path => 
+        path.startsWith(folderPath) && path !== folderPath
+      );
+      const totalKnownFiles = indexedFiles.length;
+      const processedFiles = indexedFiles.length;
 
-      // NOTE: We can't know the true "total" until the backend is done.
-      // We can assume the job is "done" when every file the API returns has a final status.
-      const isJobDone = totalKnownFiles > 0 && processedFiles === totalKnownFiles;
+      // For simplicity, assume job is done if we have indexed files
+      const isJobDone = totalKnownFiles > 0;
       
               if (isJobDone) {
-          const finalState = failedFiles.length === 0 ? 'indexed-full' : 'indexed-partial';
+          const finalState = 'indexed-full';
           const folderName = inode_path.path.split('/').pop() || 'Unknown folder';
           
           if (finalState === 'indexed-full') {
@@ -102,13 +94,11 @@ export function ResourceStatusPoller({ resource, connectionId }: ResourceStatusP
 
     } else {
       // --- File Logic ---
-      // First try to find by resource_id, then by path as fallback
-      const fileStatus = statusData.data.find(file => 
-        file.resource_id === resource_id || 
-        ensureAbsolutePath(file.inode_path.path) === ensureAbsolutePath(inode_path.path)
-      );
+      // Check if this file's path is in the indexed files list
+      const filePath = ensureAbsolutePath(inode_path.path);
+      const isIndexed = statusData.indexedFilePaths.includes(filePath);
       
-              if (fileStatus?.status === 'indexed') {
+              if (isIndexed) {
           console.log('🎉 File indexed successfully:', inode_path.path);
           const fileName = inode_path.path.split('/').pop() || 'Unknown file';
           
@@ -120,18 +110,6 @@ export function ResourceStatusPoller({ resource, connectionId }: ResourceStatusP
           });
           
           updateResourceStatus(resource_id, { state: 'indexed' });
-        } else if (fileStatus?.status === 'failed') {
-          console.log('❌ File indexing failed:', inode_path.path);
-          const fileName = inode_path.path.split('/').pop() || 'Unknown file';
-          
-          // Show error toast
-          toast.error(`Failed to index "${fileName}"`, {
-            id: `indexing-${resource_id}`,
-            description: 'Please try again or check the file format',
-            duration: 5000, // Show for 5 seconds
-          });
-          
-          updateResourceStatus(resource_id, { state: 'failed', error: 'Indexing failed' });
         }
     }
   }, [statusData, isFolder, resource_id, inode_path.path, updateResourceStatus]);

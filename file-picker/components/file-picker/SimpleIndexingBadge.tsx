@@ -1,4 +1,4 @@
-import { Loader2, Check, X, Star } from 'lucide-react';
+import { Loader2, Check, Star } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { IndexingStatus } from '@/hooks/use-file-indexing';
 

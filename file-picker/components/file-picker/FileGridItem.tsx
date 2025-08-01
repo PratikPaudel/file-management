@@ -8,7 +8,7 @@ import { IndexingStatus } from '@/hooks/use-file-indexing';
 import { SimpleIndexingBadge } from './SimpleIndexingBadge';
 import { SimpleIndexingActions } from './SimpleIndexingActions';
 import { cn } from '@/lib/utils';
-import { ResourceStatusPoller } from '@/components/knowledge-base/ResourceStatusPoller';
+
 
 interface FileGridItemProps {
   resource: Resource;
@@ -16,9 +16,7 @@ interface FileGridItemProps {
   onSelect: (selected: boolean) => void;
   onNavigate: () => void;
   onAction: (action: FileAction) => void;
-  connectionId: string;
   indexingStatus: IndexingStatus;
-  onIndexFile: (file: Resource) => Promise<void>;
   onUnindexFile: (file: Resource) => Promise<void>;
 }
 
@@ -27,37 +25,18 @@ export function FileGridItem({
   selected,
   onSelect,
   onNavigate,
-
-  connectionId,
   indexingStatus,
-  onIndexFile,
   onUnindexFile,
 }: FileGridItemProps) {
   const isFolder = resource.inode_type === 'directory';
   const fileName = resource.inode_path.path.split('/').pop() || 'Untitled';
 
 
-  // Knowledge Base operations
-  const {
-    indexResource,
-    deindexResource,
-    getResourceStatus,
-  } = useKnowledgeBaseOperations(connectionId);
-  
-  const kbStatus = getResourceStatus(resource.resource_id);
-  const isPolling = kbStatus.state === 'indexing' || kbStatus.state === 'indexing-folder';
+
 
   // KB action handlers
-  const handleIndex = () => {
-    onIndexFile(resource);
-  };
-
   const handleDeindex = () => {
     onUnindexFile(resource);
-  };
-
-  const handleRetry = () => {
-    onIndexFile(resource);
   };
 
   const handleClick = () => {
@@ -79,9 +58,7 @@ export function FileGridItem({
     return <FileText className="w-12 h-12 text-gray-500" />;
   };
 
-  return (
-    <>
-  {isPolling && <ResourceStatusPoller resource={resource} connectionId={connectionId} />}
+    return (
     <Card 
       className={cn(
         "group relative hover:bg-gray-100 transition-colors cursor-pointer",
@@ -121,15 +98,11 @@ export function FileGridItem({
         {/* Knowledge Base Actions - shown on hover, positioned at bottom-right */}
         <div className="absolute bottom-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
           <SimpleIndexingActions
-            resource={resource}
             status={indexingStatus}
-            onIndex={handleIndex}
             onUnindex={handleDeindex}
-            onRetry={handleRetry}
           />
         </div>
       </CardContent>
     </Card>
-    </>
   );
 } 

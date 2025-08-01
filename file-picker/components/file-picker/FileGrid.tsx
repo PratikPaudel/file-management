@@ -13,9 +13,7 @@ interface FileGridProps {
   onSelectionChange: (selectedIds: Set<string>) => void;
   onNavigate: (resourceId: string) => void;
   onAction: (action: FileAction) => void;
-  connectionId: string;
   fileIndexingStatus: Map<string, IndexingStatus>;
-  onIndexFile: (file: Resource) => Promise<void>;
   onUnindexFile: (file: Resource) => Promise<void>;
 }
 
@@ -26,9 +24,7 @@ export function FileGrid({
   onSelectionChange,
   onNavigate,
   onAction,
-  connectionId,
   fileIndexingStatus,
-  onIndexFile,
   onUnindexFile,
 }: FileGridProps) {
   const handleSelection = (resourceId: string, selected: boolean) => {
@@ -75,9 +71,7 @@ export function FileGrid({
             onSelect={(selected) => handleSelection(file.resource_id, selected)}
             onNavigate={() => onNavigate(file.resource_id)}
             onAction={(action) => onAction(action)}
-            connectionId={connectionId}
             indexingStatus={fileIndexingStatus.get(file.resource_id) || 'not_indexed'}
-            onIndexFile={onIndexFile}
             onUnindexFile={onUnindexFile}
           />
         ))}

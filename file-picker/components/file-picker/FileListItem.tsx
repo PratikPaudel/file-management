@@ -8,7 +8,7 @@ import { SimpleIndexingBadge } from './SimpleIndexingBadge';
 import { SimpleIndexingActions } from './SimpleIndexingActions';
 import { cn } from '@/lib/utils';
 import { useState } from 'react';
-import { ResourceStatusPoller } from '@/components/knowledge-base/ResourceStatusPoller';
+
 
 interface FileListItemProps {
   resource: Resource;
@@ -16,9 +16,7 @@ interface FileListItemProps {
   onSelect: (selected: boolean) => void;
   onNavigate: () => void;
   onAction: (action: FileAction) => void;
-  connectionId: string;
   indexingStatus: IndexingStatus;
-  onIndexFile: (file: Resource) => Promise<void>;
   onUnindexFile: (file: Resource) => Promise<void>;
 }
 
@@ -27,39 +25,18 @@ export function FileListItem({
   selected,
   onSelect,
   onNavigate,
-
-  connectionId,
   indexingStatus,
-  onIndexFile,
   onUnindexFile,
 }: FileListItemProps) {
-  const [clickCount, setClickCount] = useState(0);
   const [clickTimer, setClickTimer] = useState<NodeJS.Timeout | null>(null);
-  const [isAnimating, setIsAnimating] = useState(false);
   
-  // Knowledge Base operations
-  const {
-    indexResource,
-    deindexResource,
-    getResourceStatus,
-  } = useKnowledgeBaseOperations(connectionId);
-  
-  const kbStatus = getResourceStatus(resource.resource_id);
-  const isPolling = kbStatus.state === 'indexing' || kbStatus.state === 'indexing-folder';
+
   const isFolder = resource.inode_type === 'directory';
   const fileName = resource.inode_path.path.split('/').pop() || 'Untitled';
 
   // KB action handlers
-  const handleIndex = () => {
-    onIndexFile(resource);
-  };
-
   const handleDeindex = () => {
     onUnindexFile(resource);
-  };
-
-  const handleRetry = () => {
-    onIndexFile(resource);
   };
   
   // Format date for display
@@ -89,17 +66,10 @@ export function FileListItem({
       // Single click
       const timer = setTimeout(() => {
         onSelect(!selected);
-      } else if (clickCount === 1) {
-        // Double click - navigate into folder and trigger animation
-        setIsAnimating(true);
-        // Reset animation state after animation completes
-        setTimeout(() => setIsAnimating(false), 150);
-        onNavigate();
-      }
-      setClickCount(0);
-    }, 300);
-    
-    setClickTimer(timer);
+        setClickTimer(null);
+      }, 250);
+      setClickTimer(timer);
+    }
   };
 
   const getFileIcon = () => {
@@ -116,12 +86,10 @@ export function FileListItem({
   };
 
   return (
-    <>
-          {isPolling && <ResourceStatusPoller resource={resource} connectionId={connectionId} />}
     <div className={cn(
         "relative group",
         "hover:scale-[1.001] transition-transform duration-150",
-        isAnimating && "animate-scale-click"
+        isActive && "scale-[0.98]"
       )}>
       {/* Full-width background for hover/selected states */}
       <div
@@ -153,7 +121,7 @@ export function FileListItem({
         
         {/* File Icon */}
         <div className="w-5 flex justify-center">
-          {getFileIcon(resource)}
+          {getFileIcon()}
         </div>
         
         {/* File Name */}
@@ -177,15 +145,11 @@ export function FileListItem({
         <div className="w-40 flex items-center justify-end gap-2">
           <SimpleIndexingBadge status={indexingStatus} />
           <SimpleIndexingActions
-            resource={resource}
             status={indexingStatus}
-            onIndex={handleIndex}
             onUnindex={handleDeindex}
-            onRetry={handleRetry}
           />
         </div>
       </div>
     </div>
-    </>
   );
 } 

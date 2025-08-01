@@ -6,7 +6,6 @@ import { KnowledgeBaseStatus } from '@/hooks/use-batch-knowledge-base';
 interface BatchIndexingActionsProps {
   selectedCount: number;
   knowledgeBaseStatus: KnowledgeBaseStatus;
-  error: string | null;
   onCreateKnowledgeBase: () => void;
   onTriggerSync: () => void;
 }
@@ -14,7 +13,6 @@ interface BatchIndexingActionsProps {
 export function BatchIndexingActions({
   selectedCount,
   knowledgeBaseStatus,
-  error,
   onCreateKnowledgeBase,
   onTriggerSync,
 }: BatchIndexingActionsProps) {

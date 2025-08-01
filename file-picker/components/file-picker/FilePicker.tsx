@@ -64,8 +64,7 @@ export function FilePicker({
     resourceId: currentResourceId,
   });
 
-  // Get raw files from API
-  const rawFiles = filesData?.data || [];
+
   
   // New batch knowledge base workflow following Knowledge_Base_Workflow.ipynb
   const {
@@ -73,7 +72,7 @@ export function FilePicker({
     error: knowledgeBaseError,
     createKnowledgeBaseWithResources,
     triggerSync,
-    resetKnowledgeBase,
+
     setKnowledgeBaseId,
     setStatus,
   } = useBatchKnowledgeBase({ connectionId });
@@ -90,7 +89,7 @@ export function FilePicker({
   // Individual file status tracking
   const {
     fileStatuses,
-    setFileStatus,
+
     setMultipleFileStatuses,
     getFileStatus,
   } = useFileStatus();
@@ -374,9 +373,7 @@ export function FilePicker({
     }
   };
 
-  const handleSelect = () => {
-    // TODO: Implement actual selection logic
-  };
+
 
   return (
     <div className="flex flex-col h-full bg-white">
@@ -466,9 +463,7 @@ export function FilePicker({
             onSort={handleSort}
             isSearchActive={isSearchActive}
             searchQuery={debouncedSearchQuery}
-            connectionId={connectionId}
             fileIndexingStatus={convertedFileStatuses}
-            onIndexFile={async () => {}} // Batch mode - no individual actions
             onUnindexFile={unindexFile}
           />
         ) : (
@@ -480,9 +475,7 @@ export function FilePicker({
             onSelectionChange={handleSelectionChange}
             onNavigate={handleNavigate}
             onAction={handleAction}
-            connectionId={connectionId}
             fileIndexingStatus={convertedFileStatuses}
-            onIndexFile={async () => {}} // Batch mode - no individual actions
             onUnindexFile={unindexFile}
           />
         )}

@@ -43,7 +43,6 @@ export function FilePickerFooter({
         <BatchIndexingActions
           selectedCount={selectedCount}
           knowledgeBaseStatus={knowledgeBaseStatus}
-          error={null}
           onCreateKnowledgeBase={onCreateKnowledgeBase}
           onTriggerSync={onTriggerSync}
         />
