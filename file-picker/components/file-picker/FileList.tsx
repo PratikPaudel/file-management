@@ -1,6 +1,6 @@
 'use client';
 
-import { ChevronUp, ChevronDown } from 'lucide-react';
+import { ChevronUp, ChevronDown, Loader2 } from 'lucide-react';
 import { Resource, FileAction, SortDirection, IndexingStatus } from '@/lib/types';
 import { FileListItem } from './FileListItem';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -8,7 +8,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 
 interface FileListProps {
   files: Resource[];
-  loading: boolean;
+  isLoading: boolean; // Changed from 'loading'
+  isFetching: boolean; // New prop
   error?: Error | null;
   selectedIds: Set<string>;
   onSelectionChange: (selectedIds: Set<string>) => void;
@@ -25,7 +26,8 @@ interface FileListProps {
 
 export function FileList({
   files,
-  loading,
+  isLoading,
+  isFetching,
   error,
   selectedIds,
   onSelectionChange,
@@ -84,7 +86,8 @@ export function FileList({
     </button>
   );
 
-  if (loading) {
+  // Renders a full-page skeleton ONLY on the initial load.
+  if (isLoading) {
     return (
       <div>
         {/* Table Header */}
@@ -178,11 +181,14 @@ export function FileList({
     );
   }
 
+  // Main render logic - Add a class to show a subtle loading state during background refetches
   return (
-    <div>
+    <div className={isFetching ? 'opacity-70 transition-opacity' : ''}>
       {/* Table Header */}
       <div className="bg-gray-50 border-b border-gray-200 px-6 py-3">
         <div className="flex items-center space-x-4">
+          {/* You could add a small spinner icon here if isFetching is true */}
+          {isFetching && <Loader2 className="w-4 h-4 animate-spin text-blue-500" />}
           <div className="w-4"></div> {/* Checkbox column */}
           <div className="w-5"></div> {/* Icon column */}
           <div className="flex-1">
@@ -199,7 +205,7 @@ export function FileList({
         </div>
       </div>
       
-      {/* File List */}
+      {/* File List - This renders the STALE DATA while fetching, which is exactly what we want! */}
       <div>
         {files.map((file) => (
           <FileListItem

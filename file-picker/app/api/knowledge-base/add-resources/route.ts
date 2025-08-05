@@ -8,59 +8,6 @@ import { getStackAiApiAuthHeaders } from '@/lib/server-auth';
 const KNOWLEDGE_BASE_ID = process.env.NEXT_PUBLIC_KNOWLEDGE_BASE_ID!;
 const ORG_ID = process.env.NEXT_PUBLIC_ORG_ID!;
 
-// Helper function to check if a resource is actually indexed
-async function isResourceIndexed(resourceId: string, authHeaders: Record<string, string>): Promise<boolean> {
-  try {
-    const params = new URLSearchParams({ resource_path: '/' });
-    const kbResourcesUrl = `${API_CONFIG.BASE_URL}/knowledge_bases/${KNOWLEDGE_BASE_ID}/resources/children?${params}`;
-    
-    const response = await fetch(kbResourcesUrl, {
-      method: 'GET',
-      headers: authHeaders,
-    });
-
-    if (!response.ok) {
-      return false;
-    }
-
-    const data = await response.json();
-    const resources = data.data || [];
-    
-    // Check if the resource is actually available in the knowledge base
-    return resources.some((r: { resource_id: string }) => r.resource_id === resourceId);
-  } catch (error) {
-    console.warn('Failed to check resource indexing status:', error);
-    return false;
-  }
-}
-
-// Helper function to wait for sync completion
-async function waitForSyncCompletion(resourceIds: string[], authHeaders: Record<string, string>, maxAttempts: number = 10): Promise<boolean> {
-  console.log('🔄 Waiting for sync completion...');
-  
-  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-    console.log(`📊 Sync check attempt ${attempt}/${maxAttempts}`);
-    
-    // Wait a bit before checking
-    await new Promise(resolve => setTimeout(resolve, 3000));
-    
-    // Check if all resources are indexed
-    const allIndexed = await Promise.all(
-      resourceIds.map(id => isResourceIndexed(id, authHeaders))
-    );
-    
-    if (allIndexed.every(indexed => indexed)) {
-      console.log('✅ All resources are now indexed!');
-      return true;
-    }
-    
-    console.log(`⏳ Still waiting for indexing... (${allIndexed.filter(Boolean).length}/${resourceIds.length} complete)`);
-  }
-  
-  console.log('⚠️ Sync timeout - some resources may not be fully indexed yet');
-  return false;
-}
-
 export async function POST(request: Request) {
   try {
     console.log('🔍 Starting add-resources API call');
@@ -128,28 +75,18 @@ export async function POST(request: Request) {
 
     if (!syncResponse.ok) {
         const errorData = await syncResponse.json();
-        console.log('❌ Failed to trigger sync:', errorData);
-        return NextResponse.json({ message: 'Failed to trigger knowledge base sync', details: errorData }, { status: syncResponse.status });
+        // Even if sync fails, the KB was updated, so don't throw a hard error
+        console.warn('⚠️ Failed to trigger knowledge base sync, but resources were added.', errorData);
     }
 
-    console.log('✅ Sync triggered successfully');
-    
-    // Wait for sync completion
-    const syncCompleted = await waitForSyncCompletion(resource_ids, authHeaders);
-    
-    if (syncCompleted) {
-        console.log('✅ All resources successfully indexed and available');
-        return NextResponse.json({ 
-            message: 'Resources added and sync completed successfully',
-            status: 'completed'
-        });
-    } else {
-        console.log('⚠️ Sync may still be in progress');
-        return NextResponse.json({ 
-            message: 'Resources added and sync triggered. Indexing may still be in progress.',
-            status: 'in_progress'
-        });
-    }
+    console.log('✅ Resources added and sync triggered. Responding to client immediately.');
+
+    // Respond immediately! Do not wait for the sync to complete.
+    // The client will get this response in milliseconds, not seconds.
+    return NextResponse.json({ 
+        message: 'Resources have been queued for indexing.',
+        status: 'in_progress' // Let the client know the job has started.
+    });
 
   } catch (error) {
     console.log('❌ Error in add-resources API:', error);

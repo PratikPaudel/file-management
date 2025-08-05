@@ -60,7 +60,7 @@ export function FilePicker({
     setTypeFilter('all');
   }, [currentResourceId]);
 
-  const { data: filesData, isLoading, error } = useConnectionFiles({
+  const { data: filesData, isLoading, isFetching, error } = useConnectionFiles({
     connectionId,
     resourceId: currentResourceId,
   });
@@ -68,11 +68,11 @@ export function FilePicker({
   const { data: knowledgeBase } = useKnowledgeBase();
   const { mutate: deindexResource, isPending: isDeindexing } = useDeindexResource();
 
-  const {
-    status: knowledgeBaseStatus,
-    error: knowledgeBaseError,
-    addResourcesToKnowledgeBase,
-  } = useBatchKnowledgeBase();
+  const { mutate: addResources, isPending: isAdding } = useBatchKnowledgeBase(() => {
+    // Clear all pending resources when the batch operation settles
+    setPendingResources(new Map());
+  });
+  const [pendingResources, setPendingResources] = useState<Map<string, 'adding' | 'removing'>>(new Map());
 
   const {
     selectedResourceIds,
@@ -153,15 +153,38 @@ export function FilePicker({
     const statusMap = new Map<string, IndexingStatus>();
     files.forEach(file => {
       if (file.inode_type === 'file') {
-        const status: IndexingStatus = indexedIds.has(file.resource_id) ? 'indexed' : 'not-indexed';
+        let status: IndexingStatus;
+        
+        // Check if the resource is pending (being added or removed)
+        const pendingOperation = pendingResources.get(file.resource_id);
+        if (pendingOperation) {
+          // Use the tracked operation type instead of guessing
+          status = pendingOperation === 'adding' ? 'indexing' : 'unindexing';
+        } else {
+          // Normal status based on whether it's in the knowledge base
+          status = indexedIds.has(file.resource_id) ? 'indexed' : 'not-indexed';
+        }
+        
         statusMap.set(file.resource_id, status);
       }
     });
     return statusMap;
-  }, [files, knowledgeBase]);
+  }, [files, knowledgeBase, pendingResources]);
 
   const handleDeindex = useCallback(async (resource: Resource) => {
-    deindexResource(resource.resource_id);
+    // Add to pending resources when starting de-index
+    setPendingResources(prev => new Map(prev).set(resource.resource_id, 'removing'));
+    
+    try {
+      await deindexResource(resource.resource_id);
+    } finally {
+      // Remove from pending resources when done
+      setPendingResources(prev => {
+        const newMap = new Map(prev);
+        newMap.delete(resource.resource_id);
+        return newMap;
+      });
+    }
   }, [deindexResource]);
 
   const totalFiles = filesData?.data?.length || 0;
@@ -251,10 +274,19 @@ export function FilePicker({
       return;
     }
     
-    await addResourcesToKnowledgeBase(filesToIndex);
+    const resourceIds = filesToIndex.map(file => file.resource_id);
+    
+    // Add to pending resources when starting to add
+    setPendingResources(prev => {
+      const newMap = new Map(prev);
+      resourceIds.forEach(id => newMap.set(id, 'adding'));
+      return newMap;
+    });
+    
+    addResources(resourceIds);
     clearSelection();
     setSelectedIds(new Set());
-  }, [getSelectedFiles, addResourcesToKnowledgeBase, clearSelection]);
+  }, [getSelectedFiles, addResources, clearSelection]);
 
   const handleCancel = () => {
     setSelectedIds(new Set());
@@ -290,14 +322,6 @@ export function FilePicker({
         isTypeFilterActive={isTypeFilterActive}
       />
       
-      {knowledgeBaseError && (
-        <div className="px-6 py-3 border-b bg-red-50">
-          <p className="text-sm text-red-600">
-            {knowledgeBaseError}
-          </p>
-        </div>
-      )}
-
       <div className="flex-1 overflow-auto">
         {files.length === 0 && !isLoading && (
           <div className="flex flex-col items-center justify-center h-64 text-gray-500">
@@ -312,7 +336,8 @@ export function FilePicker({
         {viewMode === 'list' ? (
           <FileList
             files={files}
-            loading={isLoading || isDeindexing}
+            isLoading={isLoading}
+            isFetching={isFetching || isDeindexing || isAdding}
             error={error}
             selectedIds={selectedIds}
             onSelectionChange={handleSelectionChange}
@@ -329,7 +354,7 @@ export function FilePicker({
         ) : (
           <FileGrid
             files={files}
-            loading={isLoading || isDeindexing}
+            loading={isLoading || isDeindexing || isAdding}
             view={viewMode}
             selectedIds={selectedIds}
             onSelectionChange={handleSelectionChange}
@@ -345,7 +370,7 @@ export function FilePicker({
         selectedCount={selectedResourceIds.size}
         onCancel={handleCancel}
         onAddResources={handleAddResources}
-        isLoading={knowledgeBaseStatus === 'adding'}
+        isLoading={isAdding}
       />
     </div>
   );
