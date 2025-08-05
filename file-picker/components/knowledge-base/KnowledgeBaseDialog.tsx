@@ -14,39 +14,67 @@ import { FileText, Folder, Trash2 } from 'lucide-react';
 import type { Resource } from '@/lib/types';
 import { Button } from '../ui/button';
 import { useDeindexResource } from '@/hooks/use-deindex-resource';
-import { api } from '@/lib/api';
 
 // API fetcher function
-async function getIndexedResources(): Promise<Resource[]> {
-  // Use the API client which handles authentication automatically
-  const response = await api.getKnowledgeBaseFiles('93041540-e2f2-409e-a54c-316fb5949713', '/');
-  return response.data || [];
+async function getIndexedResources(): Promise<any[]> {
+  // Use the dedicated API endpoint which handles server-side authentication
+  const response = await fetch('/api/knowledge-base/indexed-resources');
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.message || 'Failed to fetch indexed resources.');
+  }
+  return response.json();
 }
 
 // A single item in the list
-function IndexedFileItem({ resource, onDeindex }: { resource: Resource; onDeindex: (resourceId: string) => void; }) {
+function IndexedFileItem({ resource, onDeindex }: { resource: any; onDeindex: (resourceId: string) => void; }) {
   const isFolder = resource.inode_type === 'directory';
-  const fileName = resource.inode_path.path.split('/').pop() || 'Untitled';
+  const fullPath = resource.inode_path.path;
+  const fileName = fullPath.split('/').pop() || 'Untitled';
+  const directory = fullPath.includes('/') ? fullPath.substring(0, fullPath.lastIndexOf('/')) : '';
   const Icon = isFolder ? Folder : FileText;
+  
+  // Check multiple possible status indicators
+  const isIndexed = resource.status === 'indexed' || 
+                   (resource.indexed_at !== null && resource.indexed_at !== undefined);
 
   return (
     <div className="flex items-center justify-between p-3 hover:bg-gray-50 rounded-md">
-      <div className="flex items-center gap-4">
-        <Icon className="w-5 h-5 text-gray-500" />
-        <div className="flex flex-col">
-          <span className="text-sm font-medium text-gray-800">{fileName}</span>
-          <span className="text-xs text-gray-500">{resource.inode_path.path}</span>
+      <div className="flex items-center gap-4 flex-1 min-w-0">
+        <Icon className="w-5 h-5 text-gray-500 flex-shrink-0" />
+        <div className="flex flex-col min-w-0 flex-1">
+          <span className="text-sm font-medium text-gray-800 truncate">{fileName}</span>
+          {directory && (
+            <span className="text-xs text-blue-600 font-medium truncate">{directory}/</span>
+          )}
+          {resource.size && (
+            <span className="text-xs text-gray-400">
+              {Math.round(resource.size / 1024)} KB
+            </span>
+          )}
         </div>
       </div>
-      <Button 
-        variant="ghost" 
-        size="sm" 
-        className="text-red-500 hover:text-red-600 hover:bg-red-50"
-        onClick={() => onDeindex(resource.resource_id)}
-      >
-        <Trash2 className="w-4 h-4 mr-2" />
-        De-index
-      </Button>
+      <div className="flex items-center gap-2 flex-shrink-0">
+        {isIndexed && resource.status === 'indexed' && (
+          <span className="text-xs text-green-600 bg-green-50 px-2 py-1 rounded">
+            Indexed
+          </span>
+        )}
+        {isIndexed && resource.status === 'error' && (
+          <span className="text-xs text-orange-600 bg-orange-50 px-2 py-1 rounded">
+            Indexed (Error)
+          </span>
+        )}
+        <Button 
+          variant="ghost" 
+          size="sm" 
+          className="text-red-500 hover:text-red-600 hover:bg-red-50"
+          onClick={() => onDeindex(resource.resource_id)}
+        >
+          <Trash2 className="w-4 h-4 mr-2" />
+          De-index
+        </Button>
+      </div>
     </div>
   );
 }
@@ -68,7 +96,7 @@ export function KnowledgeBaseDialog({ isOpen, onOpenChange }: KnowledgeBaseDialo
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl h-[80vh] flex flex-col">
+      <DialogContent className="max-w-6xl h-[80vh] flex flex-col">
         <DialogHeader>
           <DialogTitle className="text-xl">Knowledge Base Resources</DialogTitle>
           <DialogDescription>

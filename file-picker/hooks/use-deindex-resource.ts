@@ -62,7 +62,7 @@ export function useDeindexResource() {
     // Always refetch both queries after the mutation is complete
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: knowledgeBaseQueryKey });
-      queryClient.invalidateQueries({ queryKey: indexedResourcesQueryKey }); // <-- ADD THIS LINE
+      queryClient.invalidateQueries({ queryKey: indexedResourcesQueryKey });
     },
   });
 
