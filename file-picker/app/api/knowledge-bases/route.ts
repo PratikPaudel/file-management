@@ -1,18 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { API_CONFIG } from '@/lib/constants';
+import { getStackAiApiAuthHeaders } from '@/lib/server-auth';
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     console.log('🔍 GET /api/knowledge-bases - Starting request');
     
-    // Get auth headers from the request
-    const authHeader = request.headers.get('authorization');
-    if (!authHeader) {
-      console.log('❌ No authorization header found');
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    console.log('✅ Auth header found, making API call to Stack AI');
+    // Use server-side authentication instead of client headers
+    const authHeaders = await getStackAiApiAuthHeaders();
+    console.log('✅ Server-side auth successful, making API call to Stack AI');
 
     // Get knowledge bases from Stack AI API (with extended timeout)
     const controller = new AbortController();
@@ -25,9 +21,7 @@ export async function GET(request: NextRequest) {
       try {
         response = await fetch(`${API_CONFIG.BASE_URL}/knowledge_bases`, {
           method: 'GET',
-          headers: {
-            'Authorization': authHeader,
-          },
+          headers: authHeaders,
           signal: controller.signal,
         });
 
@@ -88,12 +82,9 @@ export async function POST(request: NextRequest) {
   try {
     console.log('🔍 POST /api/knowledge-bases - Starting request');
     
-    // Get auth headers from the request
-    const authHeader = request.headers.get('authorization');
-    if (!authHeader) {
-      console.log('❌ No authorization header found');
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    // Use server-side authentication instead of client headers
+    const authHeaders = await getStackAiApiAuthHeaders();
+    console.log('✅ Server-side auth successful, making API call to Stack AI');
 
     // Parse request body
     const data = await request.json();
@@ -140,7 +131,7 @@ export async function POST(request: NextRequest) {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': authHeader,
+          ...authHeaders,
         },
         body: JSON.stringify(transformedData),
         signal: controller.signal,

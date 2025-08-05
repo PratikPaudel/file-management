@@ -1,13 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { API_CONFIG } from '@/lib/constants';
+import { getStackAiApiAuthHeaders } from '@/lib/server-auth';
 
 export async function GET(request: NextRequest) {
   try {
-    // Get auth headers from the request
-    const authHeader = request.headers.get('authorization');
-    if (!authHeader) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    // Use server-side authentication instead of client headers
+    const authHeaders = await getStackAiApiAuthHeaders();
 
     // Get query parameters
     const { searchParams } = new URL(request.url);
@@ -30,9 +28,7 @@ export async function GET(request: NextRequest) {
       `${API_CONFIG.BASE_URL}/knowledge_bases/${knowledgeBaseId}/resources/children?${params}`,
       {
         method: 'GET',
-        headers: {
-          'Authorization': authHeader,
-        },
+        headers: authHeaders,
         signal: controller.signal,
       }
     );

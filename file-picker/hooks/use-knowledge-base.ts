@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { QUERY_KEYS } from '@/lib/constants';
 
-const KNOWLEDGE_BASE_ID = '93041540-e2f2-409e-a54c-316fb5949713';
+const KNOWLEDGE_BASE_ID = process.env.NEXT_PUBLIC_KNOWLEDGE_BASE_ID!;
 
 async function fetchKnowledgeBase() {
   if (!KNOWLEDGE_BASE_ID) {

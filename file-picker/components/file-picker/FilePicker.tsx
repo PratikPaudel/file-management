@@ -76,7 +76,6 @@ export function FilePicker({
 
   const {
     selectedResourceIds,
-    toggleResourceSelection,
     clearSelection,
     getSelectedFiles,
     selectMultiple,

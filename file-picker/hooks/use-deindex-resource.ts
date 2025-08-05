@@ -5,7 +5,7 @@ import { toast } from '@/lib/toast';
 import { QUERY_KEYS } from '@/lib/constants';
 import { KnowledgeBase } from '@/lib/types';
 
-const KNOWLEDGE_BASE_ID = '93041540-e2f2-409e-a54c-316fb5949713';
+const KNOWLEDGE_BASE_ID = process.env.NEXT_PUBLIC_KNOWLEDGE_BASE_ID!;
 
 async function deindexResource(resourceId: string) {
   const response = await fetch('/api/knowledge-base/remove-resource', {

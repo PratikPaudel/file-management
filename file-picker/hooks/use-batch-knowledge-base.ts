@@ -1,7 +1,9 @@
 
 import { useState, useCallback, useEffect } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { Resource } from '@/lib/types';
 import { toast, TOAST_MESSAGES } from '@/lib/toast';
+import { QUERY_KEYS } from '@/lib/constants';
 
 export type KnowledgeBaseStatus = 'none' | 'adding' | 'added' | 'error';
 
@@ -12,12 +14,15 @@ interface UseBatchKnowledgeBaseReturn {
   reset: () => void;
 }
 
+const KNOWLEDGE_BASE_ID = process.env.NEXT_PUBLIC_KNOWLEDGE_BASE_ID!;
+
 export function useBatchKnowledgeBase(): UseBatchKnowledgeBaseReturn {
   const [status, setStatus] = useState<KnowledgeBaseStatus>('none');
   const [error, setError] = useState<string | null>(null);
   const [showSuccessToast, setShowSuccessToast] = useState(false);
   const [showErrorToast, setShowErrorToast] = useState<string | null>(null);
   const [showLoadingToast, setShowLoadingToast] = useState(false);
+  const queryClient = useQueryClient();
 
   // Handle toast messages in useEffect to avoid render cycle issues
   useEffect(() => {
@@ -73,6 +78,13 @@ export function useBatchKnowledgeBase(): UseBatchKnowledgeBaseReturn {
         throw new Error(errorData.message || 'Failed to add resources');
       }
 
+      // Invalidate knowledge base queries to refresh the UI
+      const knowledgeBaseQueryKey = QUERY_KEYS.knowledgeBase(KNOWLEDGE_BASE_ID);
+      const knowledgeBasesQueryKey = QUERY_KEYS.knowledgeBases;
+      
+      await queryClient.invalidateQueries({ queryKey: knowledgeBaseQueryKey });
+      await queryClient.invalidateQueries({ queryKey: knowledgeBasesQueryKey });
+
       setStatus('added');
       toast.dismiss();
       setShowSuccessToast(true);
@@ -88,7 +100,7 @@ export function useBatchKnowledgeBase(): UseBatchKnowledgeBaseReturn {
       toast.dismiss();
       setShowErrorToast(errorMessage);
     }
-  }, []);
+  }, [queryClient]);
 
   const reset = useCallback(() => {
     setStatus('none');

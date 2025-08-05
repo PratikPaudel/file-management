@@ -29,6 +29,14 @@ export const validateClientEnvironmentVariables = () => {
     missing.push('NEXT_PUBLIC_SUPABASE_ANON_KEY');
   }
   
+  if (!process.env.NEXT_PUBLIC_KNOWLEDGE_BASE_ID || process.env.NEXT_PUBLIC_KNOWLEDGE_BASE_ID.trim() === '') {
+    missing.push('NEXT_PUBLIC_KNOWLEDGE_BASE_ID');
+  }
+  
+  if (!process.env.NEXT_PUBLIC_ORG_ID || process.env.NEXT_PUBLIC_ORG_ID.trim() === '') {
+    missing.push('NEXT_PUBLIC_ORG_ID');
+  }
+  
   if (missing.length > 0) {
     throw new Error(
       `❌ Missing client environment variables: ${missing.join(', ')}\n\n` +

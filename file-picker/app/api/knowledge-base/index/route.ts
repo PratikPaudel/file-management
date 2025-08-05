@@ -1,13 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { API_CONFIG } from '@/lib/constants';
+import { getStackAiApiAuthHeaders } from '@/lib/server-auth';
 
 export async function POST(request: NextRequest) {
   try {
-    // Get auth headers from the request (should be set by the client)
-    const authHeader = request.headers.get('authorization');
-    if (!authHeader) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    // Use server-side authentication instead of client headers
+    const authHeaders = await getStackAiApiAuthHeaders();
 
     // Parse request body
     const { knowledgeBaseId, connectionId, resourceId, orgId } = await request.json();
@@ -27,7 +25,7 @@ export async function POST(request: NextRequest) {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': authHeader,
+        ...authHeaders,
       },
       signal: controller1.signal,
     });
@@ -52,7 +50,7 @@ export async function POST(request: NextRequest) {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': authHeader,
+        ...authHeaders,
       },
       body: JSON.stringify({
         connection_id: kbData.connection_id,
@@ -79,9 +77,7 @@ export async function POST(request: NextRequest) {
     
     const syncResponse = await fetch(`${API_CONFIG.BASE_URL}/knowledge_bases/sync/trigger/${knowledgeBaseId}/${orgId}`, {
       method: 'GET', // Based on the reference implementation pattern
-      headers: {
-        'Authorization': authHeader,
-      },
+      headers: authHeaders,
       signal: controller3.signal,
     });
     

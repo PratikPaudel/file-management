@@ -1,16 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { API_CONFIG } from '@/lib/constants';
+import { getStackAiApiAuthHeaders } from '@/lib/server-auth';
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ connectionId: string }> }
 ) {
   try {
-    // Get auth headers from the request
-    const authHeader = request.headers.get('authorization');
-    if (!authHeader) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    // Use server-side authentication instead of client headers
+    const authHeaders = await getStackAiApiAuthHeaders();
 
     // Get the connection ID from the route params
     const { connectionId } = await params;
@@ -55,9 +53,7 @@ export async function GET(
       try {
         response = await fetch(`${apiUrl}?${queryParams}`, {
           method: 'GET',
-          headers: {
-            'Authorization': authHeader,
-          },
+          headers: authHeaders,
           signal: controller.signal,
         });
         

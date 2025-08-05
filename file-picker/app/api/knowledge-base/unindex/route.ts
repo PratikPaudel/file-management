@@ -1,13 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { API_CONFIG } from '@/lib/constants';
+import { getStackAiApiAuthHeaders } from '@/lib/server-auth';
 
 export async function POST(request: NextRequest) {
   try {
-    // Get auth headers from the request
-    const authHeader = request.headers.get('authorization');
-    if (!authHeader) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    // Use server-side authentication instead of client headers
+    const authHeaders = await getStackAiApiAuthHeaders();
 
     // Parse request body
     const { knowledgeBaseId, resourcePath } = await request.json();
@@ -28,9 +26,7 @@ export async function POST(request: NextRequest) {
       `${API_CONFIG.BASE_URL}/knowledge_bases/${knowledgeBaseId}/resources?${params}`,
       {
         method: 'DELETE',
-        headers: {
-          'Authorization': authHeader,
-        },
+        headers: authHeaders,
         signal: controller.signal,
       }
     );

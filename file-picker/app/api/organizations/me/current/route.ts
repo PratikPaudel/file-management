@@ -1,18 +1,14 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { API_CONFIG } from '@/lib/constants';
+import { getStackAiApiAuthHeaders } from '@/lib/server-auth';
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     console.log('🔍 GET /api/organizations/me/current - Starting request');
     
-    // Get auth headers from the request
-    const authHeader = request.headers.get('authorization');
-    if (!authHeader) {
-      console.log('❌ No authorization header found');
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    console.log('✅ Auth header found, making API call to Stack AI');
+    // Use server-side authentication instead of client headers
+    const authHeaders = await getStackAiApiAuthHeaders();
+    console.log('✅ Server-side auth successful, making API call to Stack AI');
 
     // Get current organization from Stack AI API
     const controller = new AbortController();
@@ -20,9 +16,7 @@ export async function GET(request: NextRequest) {
     
     const response = await fetch(`${API_CONFIG.BASE_URL}/organizations/me/current`, {
       method: 'GET',
-      headers: {
-        'Authorization': authHeader,
-      },
+      headers: authHeaders,
       signal: controller.signal,
     });
     

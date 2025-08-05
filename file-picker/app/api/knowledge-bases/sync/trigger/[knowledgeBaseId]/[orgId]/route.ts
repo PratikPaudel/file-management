@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { API_CONFIG } from '@/lib/constants';
+import { getStackAiApiAuthHeaders } from '@/lib/server-auth';
 
 // URL: /api/knowledge-bases/sync/trigger/[knowledgeBaseId]/[orgId]
 export async function GET(
@@ -7,11 +8,8 @@ export async function GET(
   { params }: { params: Promise<{ knowledgeBaseId: string; orgId: string }> }
 ) {
   try {
-    // Get auth headers from the request
-    const authHeader = request.headers.get('authorization');
-    if (!authHeader) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    // Use server-side authentication instead of client headers
+    const authHeaders = await getStackAiApiAuthHeaders();
 
     // Extract parameters
     const { knowledgeBaseId, orgId } = await params;
@@ -33,9 +31,7 @@ export async function GET(
       `${API_CONFIG.BASE_URL}/knowledge_bases/sync/trigger/${knowledgeBaseId}/${orgId}`,
       {
         method: 'GET',
-        headers: {
-          'Authorization': authHeader,
-        },
+        headers: authHeaders,
         signal: controller.signal,
       }
     );
