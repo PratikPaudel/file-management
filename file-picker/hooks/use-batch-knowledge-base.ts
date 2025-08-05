@@ -69,6 +69,7 @@ export function useBatchKnowledgeBase(onSettled?: () => void) {
       // Refetch data after the mutation to ensure consistency
       queryClient.invalidateQueries({ queryKey: knowledgeBaseQueryKey });
       queryClient.invalidateQueries({ queryKey: ['indexed-resources'] });
+      queryClient.invalidateQueries({ queryKey: ['knowledge-bases'] });
       
       // Call the onSettled callback if provided
       onSettled?.();

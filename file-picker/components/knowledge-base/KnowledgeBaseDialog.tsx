@@ -11,9 +11,18 @@ import {
 } from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { FileText, Folder, Trash2, Search, Database } from 'lucide-react';
+import { FileText, Folder, Trash2, Search, Database, HardDrive } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
+import { Badge } from '../ui/badge';
+import { 
+  Table, 
+  TableBody, 
+  TableCell, 
+  TableHead, 
+  TableHeader, 
+  TableRow 
+} from '../ui/table';
 import { useDeindexResource } from '@/hooks/use-deindex-resource';
 
 // API fetcher function
@@ -23,6 +32,8 @@ async function getIndexedResources(): Promise<Array<{
   inode_path: { path: string };
   size?: number;
   status?: string;
+  created_at?: string;
+  modified_at?: string;
 }>> {
   // Use the dedicated API endpoint which handles server-side authentication
   const response = await fetch('/api/knowledge-base/indexed-resources');
@@ -33,75 +44,21 @@ async function getIndexedResources(): Promise<Array<{
   return response.json();
 }
 
-// A single item in the list
-function IndexedFileItem({ 
-  resource, 
-  onDeindex, 
-  indexedResourceIds 
-}: { 
-  resource: { 
-    resource_id: string; 
-    inode_type: string; 
-    inode_path: { path: string }; 
-    size?: number; 
-    status?: string; 
-  }; 
-  onDeindex: (resourceId: string) => void;
-  indexedResourceIds: Set<string>;
-}) {
-  const isFolder = resource.inode_type === 'directory';
-  const fullPath = resource.inode_path.path;
-  const fileName = fullPath.split('/').pop() || 'Untitled';
-  const directory = fullPath.includes('/') ? fullPath.substring(0, fullPath.lastIndexOf('/')) : '';
-  const Icon = isFolder ? Folder : FileText;
-  
-  // Use the same logic as the main file picker - check if resource_id is in the authoritative list
-  const isIndexed = indexedResourceIds.has(resource.resource_id);
+// Helper function to format file size
+function formatFileSize(bytes?: number): string {
+  if (!bytes) return '-';
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
+}
 
-  return (
-    <div className="flex items-center justify-between p-4 hover:bg-gray-50 rounded-lg border border-gray-100 transition-colors duration-200">
-      <div className="flex items-center gap-4 flex-1 min-w-0">
-        <div className="flex-shrink-0 w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center">
-          <Icon className="w-5 h-5 text-gray-600" />
-        </div>
-        <div className="flex flex-col min-w-0 flex-1">
-          <span className="text-sm font-semibold text-gray-900 truncate">{fileName}</span>
-          {directory && (
-            <span className="text-xs text-blue-600 font-medium truncate flex items-center gap-1">
-              <Folder className="w-3 h-3" />
-              {directory}
-            </span>
-          )}
-          {resource.size && (
-            <span className="text-xs text-gray-500 mt-1">
-              {Math.round(resource.size / 1024)} KB
-            </span>
-          )}
-        </div>
-      </div>
-      <div className="flex items-center gap-3 flex-shrink-0">
-        {isIndexed && (
-          <span className="text-xs text-green-700 bg-green-100 px-3 py-1 rounded-full font-medium">
-            Available
-          </span>
-        )}
-        {resource.status === 'error' && (
-          <span className="text-xs text-orange-700 bg-orange-100 px-3 py-1 rounded-full font-medium">
-            Error
-          </span>
-        )}
-        <Button 
-          variant="ghost" 
-          size="sm" 
-          className="text-red-600 hover:text-red-700 hover:bg-red-50 border border-red-200 hover:border-red-300"
-          onClick={() => onDeindex(resource.resource_id)}
-        >
-          <Trash2 className="w-4 h-4 mr-2" />
-          De-index
-        </Button>
-      </div>
-    </div>
-  );
+
+
+// Helper function to get file extension
+function getFileExtension(fileName: string): string {
+  const lastDot = fileName.lastIndexOf('.');
+  return lastDot > 0 ? fileName.substring(lastDot + 1).toUpperCase() : '';
 }
 
 interface KnowledgeBaseDialogProps {
@@ -112,16 +69,17 @@ interface KnowledgeBaseDialogProps {
 export function KnowledgeBaseDialog({ isOpen, onOpenChange }: KnowledgeBaseDialogProps) {
   const [searchQuery, setSearchQuery] = useState('');
   
-  const { data: resources, isLoading, isError, error } = useQuery({
+  const { data: resources, isLoading, isError, error, isFetching } = useQuery({
     queryKey: ['indexed-resources'],
     queryFn: getIndexedResources,
     enabled: isOpen, // Only fetch when the dialog is open
-    staleTime: 30 * 1000, // 30 seconds - shorter to catch sync updates
-    refetchInterval: isOpen ? 10000 : false, // Auto-refresh every 10 seconds when open
+    staleTime: 5 * 1000, // 5 seconds - very short to catch sync updates quickly
+    refetchInterval: isOpen ? 5000 : false, // Auto-refresh every 5 seconds when open
+    refetchIntervalInBackground: false, // Only refetch when dialog is focused
   });
 
   // Fetch knowledge base details to get authoritative indexed IDs
-  const { data: knowledgeBase } = useQuery({
+  const { data: knowledgeBase, isFetching: isKbFetching } = useQuery({
     queryKey: ['knowledge-bases'],
     queryFn: async () => {
       const response = await fetch('/api/knowledge-bases');
@@ -132,16 +90,14 @@ export function KnowledgeBaseDialog({ isOpen, onOpenChange }: KnowledgeBaseDialo
       return data[0]; // Assuming we have one knowledge base
     },
     enabled: isOpen,
-    staleTime: 30 * 1000, // 30 seconds
-    refetchInterval: isOpen ? 10000 : false, // Auto-refresh every 10 seconds when open
+    staleTime: 5 * 1000, // 5 seconds - very short to catch sync updates quickly
+    refetchInterval: isOpen ? 5000 : false, // Auto-refresh every 5 seconds when open
+    refetchIntervalInBackground: false, // Only refetch when dialog is focused
   });
 
   const { mutate: deindexResource } = useDeindexResource();
 
-  // Create a Set of indexed resource IDs for efficient lookup
-  const indexedResourceIds = useMemo(() => {
-    return new Set((knowledgeBase?.connection_source_ids || []) as string[]);
-  }, [knowledgeBase]);
+
 
   // Calculate sync status
   const syncStatus = useMemo(() => {
@@ -174,11 +130,9 @@ export function KnowledgeBaseDialog({ isOpen, onOpenChange }: KnowledgeBaseDialo
     });
   }, [resources, searchQuery]);
 
-
-
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-6xl h-[80vh] flex flex-col">
+      <DialogContent className="max-w-[95vw] sm:max-w-[95vw] md:max-w-[90vw] lg:max-w-[85vw] xl:max-w-[80vw] h-[85vh] flex flex-col">
         <DialogHeader className="pb-4">
           <div className="flex items-center gap-3 mb-2">
             <Database className="w-6 h-6 text-blue-600" />
@@ -197,11 +151,16 @@ export function KnowledgeBaseDialog({ isOpen, onOpenChange }: KnowledgeBaseDialo
                 <span className="text-blue-800 font-medium">
                   Sync Status: {syncStatus.totalAvailable} of {syncStatus.totalQueued} resources available
                 </span>
-                {syncStatus.isSyncing && (
-                  <div className="flex items-center gap-2 text-blue-600">
-                    <span>Indexing in progress...</span>
-                  </div>
-                )}
+                <div className="flex items-center gap-2 text-blue-600">
+                  {(syncStatus.isSyncing || isFetching || isKbFetching) && (
+                    <>
+                      <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
+                      <span>
+                        {syncStatus.isSyncing ? 'Indexing in progress...' : 'Checking for updates...'}
+                      </span>
+                    </>
+                  )}
+                </div>
               </div>
               {syncStatus.pendingCount > 0 && (
                 <div className="mt-1 text-xs text-blue-600">
@@ -231,23 +190,25 @@ export function KnowledgeBaseDialog({ isOpen, onOpenChange }: KnowledgeBaseDialo
           </div>
         )}
 
-        <div className="flex-1 overflow-y-auto pr-2 -mr-4 border-t border-gray-200 pt-4">
+        <div className="flex-1 overflow-y-auto border border-gray-200 rounded-lg">
           {isLoading && (
-            <div className="space-y-3">
-              {[...Array(5)].map((_, i) => (
-                <div key={i} className="flex items-center gap-4 p-3 bg-gray-50 rounded-lg">
-                  <Skeleton className="w-6 h-6 rounded" />
-                  <div className="flex-1 space-y-2">
-                    <Skeleton className="h-4 w-1/2" />
-                    <Skeleton className="h-3 w-3/4" />
+            <div className="p-4">
+              <div className="space-y-3">
+                {[...Array(5)].map((_, i) => (
+                  <div key={i} className="flex items-center gap-4 p-3 bg-gray-50 rounded-lg">
+                    <Skeleton className="w-6 h-6 rounded" />
+                    <div className="flex-1 space-y-2">
+                      <Skeleton className="h-4 w-1/2" />
+                      <Skeleton className="h-3 w-3/4" />
+                    </div>
                   </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
           )}
 
           {isError && (
-            <Alert variant="destructive" className="mb-4">
+            <Alert variant="destructive" className="m-4">
               <AlertDescription>
                 Error: {error.message}
               </AlertDescription>
@@ -278,21 +239,87 @@ export function KnowledgeBaseDialog({ isOpen, onOpenChange }: KnowledgeBaseDialo
           )}
 
           {!isLoading && !isError && filteredResources && filteredResources.length > 0 && (
-            <div className="space-y-2">
-              {filteredResources.map((resource: { 
-                resource_id: string; 
-                inode_type: string; 
-                inode_path: { path: string }; 
-                size?: number; 
-                status?: string; 
-              }) => (
-                <IndexedFileItem 
-                  key={resource.resource_id} 
-                  resource={resource} 
-                  onDeindex={deindexResource}
-                  indexedResourceIds={indexedResourceIds}
-                />
-              ))}
+            <div className={isFetching || isKbFetching ? 'opacity-75 transition-opacity' : ''}>
+              <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-[50%]">Name</TableHead>
+                  <TableHead className="w-[15%]">Type</TableHead>
+                  <TableHead className="w-[15%]">Size</TableHead>
+                  <TableHead className="w-[20%] text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredResources.map((resource: { 
+                  resource_id: string; 
+                  inode_type: string; 
+                  inode_path: { path: string }; 
+                  size?: number; 
+                  status?: string;
+                  created_at?: string;
+                  modified_at?: string;
+                }) => {
+                  const isFolder = resource.inode_type === 'directory';
+                  const fullPath = resource.inode_path.path;
+                  const fileName = fullPath.split('/').pop() || 'Untitled';
+                  const directory = fullPath.includes('/') ? fullPath.substring(0, fullPath.lastIndexOf('/')) : '';
+                  const Icon = isFolder ? Folder : FileText;
+                  
+                  return (
+                    <TableRow key={resource.resource_id} className="hover:bg-gray-50">
+                      <TableCell>
+                        <div className="flex items-center gap-3">
+                          <div className="flex-shrink-0 w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center">
+                            <Icon className="w-4 h-4 text-gray-600" />
+                          </div>
+                          <div className="flex flex-col min-w-0">
+                            <span className="text-sm font-medium text-gray-900 truncate">
+                              {fileName}
+                            </span>
+                            {directory && (
+                              <span className="text-xs text-gray-500 truncate flex items-center gap-1">
+                                <Folder className="w-3 h-3" />
+                                {directory}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          {isFolder ? (
+                            <Badge variant="secondary" className="bg-blue-100 text-blue-800">
+                              Folder
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline" className="text-gray-600">
+                              {getFileExtension(fileName)}
+                            </Badge>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-1 text-sm text-gray-600">
+                          <HardDrive className="w-3 h-3" />
+                          {formatFileSize(resource.size)}
+                        </div>
+                      </TableCell>
+                      
+                      <TableCell className="text-right">
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                          onClick={() => deindexResource(resource.resource_id)}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
             </div>
           )}
         </div>

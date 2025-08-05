@@ -31,9 +31,12 @@ export default function RootLayout({
       >
         <QueryProvider>
           {children}
-          <Toaster />
+          {/* 
+            The Toaster component should be rendered once in your application's root.
+            It will handle rendering all toast notifications.
+          */}
+          <Toaster position="bottom-center" />
         </QueryProvider>
-        <Toaster position="bottom-center" />
       </body>
     </html>
   );

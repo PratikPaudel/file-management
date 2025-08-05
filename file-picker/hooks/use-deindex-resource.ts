@@ -63,6 +63,7 @@ export function useDeindexResource() {
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: knowledgeBaseQueryKey });
       queryClient.invalidateQueries({ queryKey: indexedResourcesQueryKey });
+      queryClient.invalidateQueries({ queryKey: ['knowledge-bases'] });
     },
   });
 
