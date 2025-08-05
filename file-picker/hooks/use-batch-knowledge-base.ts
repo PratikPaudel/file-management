@@ -1,5 +1,5 @@
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { Resource } from '@/lib/types';
 import { toast, TOAST_MESSAGES } from '@/lib/toast';
 
@@ -15,6 +15,31 @@ interface UseBatchKnowledgeBaseReturn {
 export function useBatchKnowledgeBase(): UseBatchKnowledgeBaseReturn {
   const [status, setStatus] = useState<KnowledgeBaseStatus>('none');
   const [error, setError] = useState<string | null>(null);
+  const [showSuccessToast, setShowSuccessToast] = useState(false);
+  const [showErrorToast, setShowErrorToast] = useState<string | null>(null);
+  const [showLoadingToast, setShowLoadingToast] = useState(false);
+
+  // Handle toast messages in useEffect to avoid render cycle issues
+  useEffect(() => {
+    if (showLoadingToast) {
+      toast.loading(TOAST_MESSAGES.ADDING_TO_KB);
+      setShowLoadingToast(false);
+    }
+  }, [showLoadingToast]);
+
+  useEffect(() => {
+    if (showSuccessToast) {
+      toast.success(TOAST_MESSAGES.ADDED_TO_KB_SUCCESS);
+      setShowSuccessToast(false);
+    }
+  }, [showSuccessToast]);
+
+  useEffect(() => {
+    if (showErrorToast) {
+      toast.error(showErrorToast);
+      setShowErrorToast(null);
+    }
+  }, [showErrorToast]);
 
   const addResourcesToKnowledgeBase = useCallback(async (selectedResources: Resource[]) => {
     if (selectedResources.length === 0) {
@@ -24,7 +49,7 @@ export function useBatchKnowledgeBase(): UseBatchKnowledgeBaseReturn {
 
     setStatus('adding');
     setError(null);
-    toast.loading(TOAST_MESSAGES.ADDING_TO_KB);
+    setShowLoadingToast(true);
 
     try {
       const resource_ids = selectedResources
@@ -50,7 +75,7 @@ export function useBatchKnowledgeBase(): UseBatchKnowledgeBaseReturn {
 
       setStatus('added');
       toast.dismiss();
-      toast.success(TOAST_MESSAGES.ADDED_TO_KB_SUCCESS);
+      setShowSuccessToast(true);
       
       setTimeout(() => {
         setStatus('none');
@@ -61,7 +86,7 @@ export function useBatchKnowledgeBase(): UseBatchKnowledgeBaseReturn {
       setError(errorMessage);
       setStatus('error');
       toast.dismiss();
-      toast.error(errorMessage);
+      setShowErrorToast(errorMessage);
     }
   }, []);
 

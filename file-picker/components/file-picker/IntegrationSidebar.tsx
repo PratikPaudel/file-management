@@ -98,7 +98,15 @@ export function IntegrationSidebar({
       {/* Header */}
       <div className="px-4 py-5 border-b border-gray-200 flex items-center justify-between">
         {!collapsed && (
-          <h2 className="text-base font-medium text-gray-900">Integrations</h2>
+          <div className="flex items-center">
+            <Image
+              src="/stackai-logo.png"
+              alt="Stack AI Logo"
+              width={100}
+              height={100}
+              className="object-contain"
+            />
+          </div>
         )}
         {onToggleCollapse && (
           <Button

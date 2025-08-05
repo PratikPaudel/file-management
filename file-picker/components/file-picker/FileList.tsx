@@ -70,7 +70,7 @@ export function FileList({
       onClick={() => onSort?.(column)}
       onKeyDown={(e) => handleKeyDown(e, column)}
       className={`
-        p-0 h-auto font-medium text-gray-700 
+        p-0 h-auto font-medium text-gray-700 text-xs
         hover:text-gray-900 hover:bg-gray-100 
         focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 
         transition-colors rounded px-2 py-1 -mx-2 -my-1

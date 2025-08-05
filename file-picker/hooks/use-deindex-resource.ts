@@ -1,5 +1,6 @@
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useEffect } from 'react';
 import { toast } from '@/lib/toast';
 import { QUERY_KEYS } from '@/lib/constants';
 
@@ -25,16 +26,27 @@ async function deindexResource(resourceId: string) {
 export function useDeindexResource() {
   const queryClient = useQueryClient();
 
-  return useMutation({
+  const mutation = useMutation({
     mutationFn: deindexResource,
     onSuccess: () => {
-      toast.success('File successfully removed from the knowledge base.');
       queryClient.invalidateQueries({
         queryKey: QUERY_KEYS.knowledgeBase(KNOWLEDGE_BASE_ID),
       });
     },
-    onError: (error) => {
-      toast.error(error.message);
-    },
   });
+
+  // Handle toast messages in useEffect to avoid render cycle issues
+  useEffect(() => {
+    if (mutation.isSuccess) {
+      toast.success('File successfully removed from the knowledge base.');
+    }
+  }, [mutation.isSuccess]);
+
+  useEffect(() => {
+    if (mutation.isError && mutation.error) {
+      toast.error(mutation.error.message);
+    }
+  }, [mutation.isError, mutation.error]);
+
+  return mutation;
 }

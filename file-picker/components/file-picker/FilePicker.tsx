@@ -36,6 +36,15 @@ export function FilePicker({
   const [breadcrumbs, setBreadcrumbs] = useState<BreadcrumbItem[]>([
     { name: 'My Drive', path: '/', resourceId: undefined }
   ]);
+  const [showNoFilesError, setShowNoFilesError] = useState(false);
+
+  // Handle error toast in useEffect to avoid render cycle issues
+  useEffect(() => {
+    if (showNoFilesError) {
+      toast.error('Please select at least one file to index.');
+      setShowNoFilesError(false);
+    }
+  }, [showNoFilesError]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -239,7 +248,7 @@ export function FilePicker({
   const handleAddResources = useCallback(async () => {
     const filesToIndex = getSelectedFiles().filter(file => file.inode_type === 'file');
     if (filesToIndex.length === 0) {
-      toast.error('Please select at least one file to index.');
+      setShowNoFilesError(true);
       return;
     }
     

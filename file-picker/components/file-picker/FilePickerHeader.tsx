@@ -4,7 +4,7 @@ import { Plus } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-
+import Image from 'next/image';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
 export function FilePickerHeader() {
@@ -19,12 +19,14 @@ export function FilePickerHeader() {
     <div className="relative">
       <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
         <div className="flex items-center space-x-3">
-          {/* Google Drive Icon */}
-          <svg width="24" height="24" viewBox="0 0 24 24">
-            <path fill="#4285f4" d="M6 2l6 10.5-6 10.5z"/>
-            <path fill="#ea4335" d="M6 2L18 2l-6 10.5z"/>
-            <path fill="#34a853" d="M6 23h12l-6-10.5z"/>
-          </svg>
+          {/* Stack AI Logo */}
+          <Image
+            src="/assets/google-drive.png"
+            alt="Stack AI Logo"
+            width={24}
+            height={24}
+            className="object-contain"
+          />
           
           {/* Title, Badge, and Email */}
           <div className="flex flex-col">
