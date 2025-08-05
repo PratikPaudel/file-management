@@ -1,9 +1,9 @@
 'use client';
 
 import { Folder, FileText } from 'lucide-react';
-import { Resource, FileAction } from '@/lib/types';
+
 import { Checkbox } from '@/components/ui/checkbox';
-import { IndexingStatus } from '@/hooks/use-file-indexing';
+import { Resource, FileAction, IndexingStatus } from '@/lib/types';
 import { SimpleIndexingBadge } from './SimpleIndexingBadge';
 import { SimpleIndexingActions } from './SimpleIndexingActions';
 import { cn } from '@/lib/utils';

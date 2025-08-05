@@ -126,7 +126,8 @@ export interface KnowledgeBaseItemStatus {
   error?: string;           // Error message if failed
 }
 
-export type IndexingStatus = 'indexed' | 'not-indexed' | 'indexing' | 'error'; // Keep for backward compatibility
+export type IndexingStatus = 'indexed' | 'not-indexed' | 'indexing' | 'unindexing' | 'error';
+
 
 export type FileAction = 'import' | 'view' | 'download' | 'delete' | 'index' | 'deindex' | 'retry';
 

@@ -18,12 +18,12 @@ export function useResourceSelection(): UseResourceSelectionReturn {
   const [selectedResourceIds, setSelectedResourceIds] = useState<Set<string>>(new Set());
 
   const toggleResourceSelection = useCallback((resource: Resource, getFileStatus?: (resourceId: string) => FileStatus) => {
-    // Check if file is already synced
+    // Check if file is already synced (only if getFileStatus is provided)
     if (getFileStatus) {
       const status = getFileStatus(resource.resource_id);
-      if (status === 'synced') {
-        toast.error(TOAST_MESSAGES.ALREADY_SYNCED);
-        return; // Don't allow selection of synced files
+      if (status === 'indexed') {
+        toast.error(TOAST_MESSAGES.ALREADY_INDEXED);
+        return;
       }
     }
 

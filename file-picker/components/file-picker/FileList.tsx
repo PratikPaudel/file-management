@@ -1,8 +1,7 @@
 'use client';
 
 import { ChevronUp, ChevronDown } from 'lucide-react';
-import { Resource, FileAction, SortDirection } from '@/lib/types';
-import { IndexingStatus } from '@/hooks/use-file-indexing';
+import { Resource, FileAction, SortDirection, IndexingStatus } from '@/lib/types';
 import { FileListItem } from './FileListItem';
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -210,7 +209,7 @@ export function FileList({
             onSelect={(selected) => handleSelection(file.resource_id, selected)}
             onNavigate={() => onNavigate(file.resource_id)}
             onAction={(action) => onAction(action)}
-            indexingStatus={fileIndexingStatus.get(file.resource_id) || 'not_indexed'}
+            indexingStatus={fileIndexingStatus.get(file.resource_id) || 'not-indexed'}
             onUnindexFile={onUnindexFile}
           />
         ))}

@@ -1,6 +1,6 @@
 import { Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { IndexingStatus } from '@/hooks/use-file-indexing';
+import { IndexingStatus } from '@/lib/types';
 
 
 interface SimpleIndexingActionsProps {
@@ -17,7 +17,7 @@ export function SimpleIndexingActions({
     return null;
   }
 
-  if (status === 'indexed' || status === 'synced') {
+  if (status === 'indexed') {
     // Show unindex button
     return (
       <Button
@@ -31,7 +31,7 @@ export function SimpleIndexingActions({
     );
   }
 
-  if (status === 'not_indexed') {
+  if (status === 'not-indexed') {
     // Show index button
     return null;
   }

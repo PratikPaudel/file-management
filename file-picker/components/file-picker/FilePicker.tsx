@@ -2,8 +2,10 @@
 'use client';
 
 import { useState, useMemo, useCallback, useEffect } from 'react';
-import { FilePickerProps, ViewMode, Resource, SortDirection } from '@/lib/types';
+import { FilePickerProps, ViewMode, Resource, SortDirection, IndexingStatus } from '@/lib/types';
 import { useConnectionFiles } from '@/hooks/use-connection';
+import { useKnowledgeBase } from '@/hooks/use-knowledge-base';
+import { useDeindexResource } from '@/hooks/use-deindex-resource';
 import { FilePickerHeader } from '@/components/file-picker/FilePickerHeader';
 import { FileListControls } from '@/components/file-picker/FileListControls';
 import { FileList } from '@/components/file-picker/FileList';
@@ -11,7 +13,7 @@ import { FileGrid } from '@/components/file-picker/FileGrid';
 import { FilePickerFooter } from '@/components/file-picker/FilePickerFooter';
 import { useBatchKnowledgeBase } from '@/hooks/use-batch-knowledge-base';
 import { useResourceSelection } from '@/hooks/use-resource-selection';
-import { toast, TOAST_MESSAGES } from '@/lib/toast';
+import { toast } from '@/lib/toast';
 
 interface BreadcrumbItem {
   name: string;
@@ -54,19 +56,21 @@ export function FilePicker({
     resourceId: currentResourceId,
   });
 
+  const { data: knowledgeBase } = useKnowledgeBase();
+  const { mutate: deindexResource, isPending: isDeindexing } = useDeindexResource();
+
   const {
     status: knowledgeBaseStatus,
     error: knowledgeBaseError,
     addResourcesToKnowledgeBase,
-    reset,
   } = useBatchKnowledgeBase();
 
   const {
-    selectedResources,
     selectedResourceIds,
     toggleResourceSelection,
     clearSelection,
     getSelectedFiles,
+    selectMultiple,
   } = useResourceSelection();
 
   const getFileExtension = useCallback((fileName: string): string => {
@@ -136,6 +140,22 @@ export function FilePicker({
     return filtered;
   }, [filesData?.data, debouncedSearchQuery, typeFilter, sortBy, sortDirection, matchesSearchQuery, getFileExtension]);
 
+  const fileIndexingStatus = useMemo(() => {
+    const indexedIds = new Set(knowledgeBase?.connection_source_ids || []);
+    const statusMap = new Map<string, IndexingStatus>();
+    files.forEach(file => {
+      if (file.inode_type === 'file') {
+        const status: IndexingStatus = indexedIds.has(file.resource_id) ? 'indexed' : 'not-indexed';
+        statusMap.set(file.resource_id, status);
+      }
+    });
+    return statusMap;
+  }, [files, knowledgeBase]);
+
+  const handleDeindex = useCallback(async (resource: Resource) => {
+    deindexResource(resource.resource_id);
+  }, [deindexResource]);
+
   const totalFiles = filesData?.data?.length || 0;
   const filteredFiles = files.length;
   const isSearchActive = debouncedSearchQuery.trim().length > 0;
@@ -181,10 +201,8 @@ export function FilePicker({
     
     const selectedFiles = files.filter(file => newSelectedIds.has(file.resource_id));
     
-    clearSelection();
-    selectedFiles.forEach(file => {
-      toggleResourceSelection(file);
-    });
+    // Use selectMultiple instead of forEach loop
+    selectMultiple(selectedFiles);
     
     if (onSelectionChange) {
       onSelectionChange(selectedFiles);
@@ -219,7 +237,7 @@ export function FilePicker({
   };
 
   const handleAddResources = useCallback(async () => {
-    const filesToIndex = getSelectedFiles();
+    const filesToIndex = getSelectedFiles().filter(file => file.inode_type === 'file');
     if (filesToIndex.length === 0) {
       toast.error('Please select at least one file to index.');
       return;
@@ -286,7 +304,7 @@ export function FilePicker({
         {viewMode === 'list' ? (
           <FileList
             files={files}
-            loading={isLoading}
+            loading={isLoading || isDeindexing}
             error={error}
             selectedIds={selectedIds}
             onSelectionChange={handleSelectionChange}
@@ -297,21 +315,21 @@ export function FilePicker({
             onSort={handleSort}
             isSearchActive={isSearchActive}
             searchQuery={debouncedSearchQuery}
-            fileIndexingStatus={new Map()}
-            onUnindexFile={async () => {}}
+            fileIndexingStatus={fileIndexingStatus}
+            onUnindexFile={handleDeindex}
           />
         ) : (
           <FileGrid
             files={files}
-            loading={isLoading}
+            loading={isLoading || isDeindexing}
             view={viewMode}
             selectedIds={selectedIds}
             onSelectionChange={handleSelectionChange}
             onNavigate={handleNavigate}
             onAction={() => {}}
-            fileIndexingStatus={new Map()}
-            onUnindexFile={async () => {}}
-          />
+            fileIndexingStatus={fileIndexingStatus}
+            onUnindexFile={handleDeindex}
+                    />
         )}
       </div>
       

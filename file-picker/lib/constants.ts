@@ -128,8 +128,9 @@ export const QUERY_KEYS = {
   connections: ['connections'],
   connectionFiles: (connectionId: string, folderId?: string) => 
     ['connection-files', connectionId, folderId],
-  knowledgeBases: ['knowledge-bases'],
-  knowledgeBaseStatus: (knowledgeBaseId: string, resourceIds: string[]) => 
+    knowledgeBases: ['knowledge-bases'],
+  knowledgeBase: (knowledgeBaseId: string) => ['knowledge-base', knowledgeBaseId],
+   knowledgeBaseStatus: (knowledgeBaseId: string, resourceIds: string[]) =>  
     ['kb-status', knowledgeBaseId, resourceIds],
   knowledgeBaseFiles: (knowledgeBaseId: string, resourcePath?: string) => 
     ['kb-files', knowledgeBaseId, resourcePath],

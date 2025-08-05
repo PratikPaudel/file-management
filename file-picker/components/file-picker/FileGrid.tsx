@@ -1,7 +1,6 @@
 'use client';
 
-import { Resource, FileAction } from '@/lib/types';
-import { IndexingStatus } from '@/hooks/use-file-indexing';
+import { Resource, FileAction, IndexingStatus } from '@/lib/types';
 import { FileGridItem } from './FileGridItem';
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -71,7 +70,7 @@ export function FileGrid({
             onSelect={(selected) => handleSelection(file.resource_id, selected)}
             onNavigate={() => onNavigate(file.resource_id)}
             onAction={(action) => onAction(action)}
-            indexingStatus={fileIndexingStatus.get(file.resource_id) || 'not_indexed'}
+            indexingStatus={fileIndexingStatus.get(file.resource_id) || 'not-indexed'}
             onUnindexFile={onUnindexFile}
           />
         ))}
