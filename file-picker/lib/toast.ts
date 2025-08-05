@@ -1,3 +1,4 @@
+
 import { toast as sonnerToast } from "sonner"
 
 export const toast = {
@@ -20,12 +21,9 @@ export const toast = {
 
 // Toast messages for the workflow
 export const TOAST_MESSAGES = {
-  ADDING_TO_KB: 'Adding files to knowledge base...',
-  ADDED_TO_KB: 'Files added to knowledge base successfully!',
-  SYNCING: 'Syncing knowledge base...',
-  SYNCED: 'Knowledge base synced! Files are now searchable.',
-  ERROR_ADDING: 'Failed to add files to knowledge base',
-  ERROR_SYNCING: 'Failed to sync knowledge base',
-  ALREADY_SYNCED: 'This file is already synced and searchable',
-  SYNCED_FILES_SKIPPED: 'Some files were skipped - they are already synced',
+  ADDING_TO_KB: 'Adding selected files to the knowledge base...',
+  ADDED_TO_KB_SUCCESS: 'Files successfully added and are now being indexed.',
+  ERROR_ADDING: 'Failed to add files to the knowledge base.',
+  ALREADY_INDEXED: 'This file has already been added to the knowledge base.',
+  SOME_FILES_SKIPPED: 'Some files were skipped because they have already been added.',
 } as const;
