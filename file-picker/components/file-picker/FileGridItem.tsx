@@ -1,13 +1,12 @@
 'use client';
 
-import { Folder, FileText } from 'lucide-react';
-
 import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent } from '@/components/ui/card';
 import { Resource, FileAction, IndexingStatus } from '@/lib/types';
 import { SimpleIndexingBadge } from './SimpleIndexingBadge';
 import { SimpleIndexingActions } from './SimpleIndexingActions';
 import { cn } from '@/lib/utils';
+import { useFileItem } from '@/hooks/use-file-item';
 
 
 interface FileGridItemProps {
@@ -28,11 +27,7 @@ export function FileGridItem({
   indexingStatus,
   onUnindexFile,
 }: FileGridItemProps) {
-  const isFolder = resource.inode_type === 'directory';
-  const fileName = resource.inode_path.path.split('/').pop() || 'Untitled';
-
-
-
+  const { isFolder, fileName, icon } = useFileItem(resource);
 
   // KB action handlers
   const handleDeindex = () => {
@@ -43,19 +38,6 @@ export function FileGridItem({
     if (isFolder) {
       onNavigate();
     }
-  };
-
-  const getFileIcon = () => {
-    if (isFolder) {
-      return <Folder className="w-12 h-12 text-gray-900" />;
-    }
-    
-    // PDF files get a red icon
-    if (fileName.endsWith('.pdf')) {
-      return <FileText className="w-12 h-12 text-red-500" />;
-    }
-    
-    return <FileText className="w-12 h-12 text-gray-500" />;
   };
 
     return (
@@ -79,8 +61,8 @@ export function FileGridItem({
         </div>
         
         {/* File Icon - centered */}
-        <div className="flex-shrink-0">
-          {getFileIcon()}
+        <div className="flex-shrink-0 w-12 h-12">
+          <icon.Icon className={icon.className} />
         </div>
         
         {/* File Name - bottom center */}

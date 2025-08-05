@@ -1,13 +1,12 @@
 'use client';
 
-import { Folder, FileText } from 'lucide-react';
-
 import { Checkbox } from '@/components/ui/checkbox';
 import { Resource, FileAction, IndexingStatus } from '@/lib/types';
 import { SimpleIndexingBadge } from './SimpleIndexingBadge';
 import { SimpleIndexingActions } from './SimpleIndexingActions';
 import { cn } from '@/lib/utils';
 import { useState } from 'react';
+import { useFileItem } from '@/hooks/use-file-item';
 
 
 interface FileListItemProps {
@@ -29,10 +28,7 @@ export function FileListItem({
   onUnindexFile,
 }: FileListItemProps) {
   const [clickTimer, setClickTimer] = useState<NodeJS.Timeout | null>(null);
-  
-
-  const isFolder = resource.inode_type === 'directory';
-  const fileName = resource.inode_path.path.split('/').pop() || 'Untitled';
+  const { isFolder, fileName, icon } = useFileItem(resource);
 
   // KB action handlers
   const handleDeindex = () => {
@@ -72,18 +68,7 @@ export function FileListItem({
     }
   };
 
-  const getFileIcon = () => {
-    if (isFolder) {
-      return <Folder className="w-5 h-5 text-gray-900" />;
-    }
-    
-    // PDF files get a red icon
-    if (fileName.endsWith('.pdf')) {
-      return <FileText className="w-5 h-5 text-red-500" />;
-    }
-    
-    return <FileText className="w-5 h-5 text-gray-500" />;
-  };
+
 
   return (
     <div className={cn(
@@ -120,8 +105,8 @@ export function FileListItem({
         </div>
         
         {/* File Icon */}
-        <div className="w-5 flex justify-center">
-          {getFileIcon()}
+        <div className="w-5 h-5 flex justify-center">
+          <icon.Icon className={icon.className} />
         </div>
         
         {/* File Name */}
