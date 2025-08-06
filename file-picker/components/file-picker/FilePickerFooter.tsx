@@ -22,7 +22,7 @@ export function FilePickerFooter({
     <div className="flex items-center justify-between px-6 py-4 border-t border-gray-200 bg-gray-50">
       <div className="flex items-center space-x-2 text-sm text-gray-600">
         <Info className="w-4 h-4 text-gray-400" />
-        <span>We recommend selecting as few items as needed.</span>
+        <span>You can select both individual files and entire folders.</span>
       </div>
       
       <div className="flex items-center space-x-3">

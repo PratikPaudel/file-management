@@ -41,7 +41,7 @@ export function FilePicker({
   // Handle error toast in useEffect to avoid render cycle issues
   useEffect(() => {
     if (showNoFilesError) {
-      toast.error('Please select at least one file to index.');
+      toast.error('Please select at least one file or folder to index.');
       setShowNoFilesError(false);
     }
   }, [showNoFilesError]);
@@ -77,7 +77,7 @@ export function FilePicker({
   const {
     selectedResourceIds,
     clearSelection,
-    getSelectedFiles,
+    getSelectedResources,
     selectMultiple,
   } = useResourceSelection();
 
@@ -150,26 +150,37 @@ export function FilePicker({
 
   const fileIndexingStatus = useMemo(() => {
     const indexedIds = new Set(knowledgeBase?.connection_source_ids || []);
+    
+    // Create a set of all indexed folder IDs in the current navigation path.
+    const indexedAncestorIds = new Set(
+      breadcrumbs.map(b => b.resourceId).filter(id => id && indexedIds.has(id))
+    );
+
     const statusMap = new Map<string, IndexingStatus>();
-    files.forEach(file => {
-      if (file.inode_type === 'file') {
-        let status: IndexingStatus;
-        
-        // Check if the resource is pending (being added or removed)
-        const pendingOperation = pendingResources.get(file.resource_id);
-        if (pendingOperation) {
-          // Use the tracked operation type instead of guessing
-          status = pendingOperation === 'adding' ? 'indexing' : 'unindexing';
+    files.forEach(resource => {
+      let status: IndexingStatus;
+      
+      const pendingOperation = pendingResources.get(resource.resource_id);
+
+      if (pendingOperation) {
+        status = pendingOperation === 'adding' ? 'indexing' : 'unindexing';
+      } else {
+        const isParentFolderIndexed = indexedAncestorIds.size > 0;
+        const isResourceExplicitlyIndexed = indexedIds.has(resource.resource_id);
+
+        // A file is "indexed" if it was explicitly added OR its parent folder was.
+        // A folder is only "indexed" if it was explicitly added.
+        if (isResourceExplicitlyIndexed || (resource.inode_type === 'file' && isParentFolderIndexed)) {
+          status = 'indexed';
         } else {
-          // Normal status based on whether it's in the knowledge base
-          status = indexedIds.has(file.resource_id) ? 'indexed' : 'not-indexed';
+          status = 'not-indexed';
         }
-        
-        statusMap.set(file.resource_id, status);
       }
+      
+      statusMap.set(resource.resource_id, status);
     });
     return statusMap;
-  }, [files, knowledgeBase, pendingResources]);
+  }, [files, knowledgeBase, pendingResources, breadcrumbs]);
 
   const handleDeindex = useCallback(async (resource: Resource) => {
     // Add to pending resources when starting de-index
@@ -268,13 +279,13 @@ export function FilePicker({
   };
 
   const handleAddResources = useCallback(async () => {
-    const filesToIndex = getSelectedFiles().filter(file => file.inode_type === 'file');
-    if (filesToIndex.length === 0) {
+    const resourcesToIndex = getSelectedResources();
+    if (resourcesToIndex.length === 0) {
       setShowNoFilesError(true);
       return;
     }
     
-    const resourceIds = filesToIndex.map(file => file.resource_id);
+    const resourceIds = resourcesToIndex.map(resource => resource.resource_id);
     
     // Add to pending resources when starting to add
     setPendingResources(prev => {
@@ -286,7 +297,7 @@ export function FilePicker({
     addResources(resourceIds);
     clearSelection();
     setSelectedIds(new Set());
-  }, [getSelectedFiles, addResources, clearSelection]);
+  }, [getSelectedResources, addResources, clearSelection]);
 
   const handleCancel = () => {
     setSelectedIds(new Set());

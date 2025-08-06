@@ -10,6 +10,7 @@ interface UseResourceSelectionReturn {
   clearSelection: () => void;
   isSelected: (resourceId: string) => boolean;
   getSelectedFiles: () => Resource[];
+  getSelectedResources: () => Resource[];
   selectMultiple: (resources: Resource[]) => void;
 }
 
@@ -63,6 +64,11 @@ export function useResourceSelection(): UseResourceSelectionReturn {
     return selectedResources.filter(resource => resource.inode_type === 'file');
   }, [selectedResources]);
 
+  // This is the key change: return all selected resources (files and folders)
+  const getSelectedResources = useCallback(() => {
+    return selectedResources;
+  }, [selectedResources]);
+
   const selectMultiple = useCallback((resources: Resource[]) => {
     setSelectedResources(resources);
     setSelectedResourceIds(new Set(resources.map(r => r.resource_id)));
@@ -75,6 +81,7 @@ export function useResourceSelection(): UseResourceSelectionReturn {
     clearSelection,
     isSelected,
     getSelectedFiles,
+    getSelectedResources,
     selectMultiple,
   };
 }

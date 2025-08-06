@@ -97,7 +97,19 @@ export function KnowledgeBaseDialog({ isOpen, onOpenChange }: KnowledgeBaseDialo
 
   const { mutate: deindexResource } = useDeindexResource();
 
+  // --- NEW: Handle de-indexing with confirmation ---
+  const handleDeindexClick = (resource: { resource_id: string; inode_type: string; inode_path: { path: string } }) => {
+    const isFolder = resource.inode_type === 'directory';
+    const name = resource.inode_path.path.split('/').pop() || 'this item';
+    
+    const message = isFolder 
+      ? `Are you sure you want to de-index the entire "${name}" folder and all its contents? This action cannot be undone.`
+      : `Are you sure you want to de-index the file "${name}"?`;
 
+    if (window.confirm(message)) {
+      deindexResource(resource.resource_id);
+    }
+  };
 
   // Calculate sync status
   const syncStatus = useMemo(() => {
@@ -120,6 +132,7 @@ export function KnowledgeBaseDialog({ isOpen, onOpenChange }: KnowledgeBaseDialo
     if (!resources || !searchQuery.trim()) return resources;
     
     const query = searchQuery.toLowerCase();
+    // Also search in the directory path for better filtering
     return resources.filter((resource: { inode_path: { path: string } }) => {
       const fileName = resource.inode_path.path.toLowerCase();
       const directory = resource.inode_path.path.includes('/') 
@@ -141,7 +154,7 @@ export function KnowledgeBaseDialog({ isOpen, onOpenChange }: KnowledgeBaseDialo
             </DialogTitle>
           </div>
           <DialogDescription className="text-gray-600">
-            Manage all files and folders currently indexed in your knowledge base.
+            Manage all files and folders currently indexed in your knowledge base. Folders show their full path for context.
           </DialogDescription>
           
           {/* Sync Status Indicator */}
@@ -306,11 +319,12 @@ export function KnowledgeBaseDialog({ isOpen, onOpenChange }: KnowledgeBaseDialo
                       </TableCell>
                       
                       <TableCell className="text-right">
+                        {/* --- NEW: Use the de-index handler with confirmation --- */}
                         <Button 
                           variant="ghost" 
                           size="sm" 
                           className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                          onClick={() => deindexResource(resource.resource_id)}
+                          onClick={() => handleDeindexClick(resource)}
                         >
                           <Trash2 className="w-4 h-4" />
                         </Button>
