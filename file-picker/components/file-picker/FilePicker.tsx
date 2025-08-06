@@ -151,9 +151,9 @@ export function FilePicker({
   const fileIndexingStatus = useMemo(() => {
     const indexedIds = new Set(knowledgeBase?.connection_source_ids || []);
     
-    // Create a set of all indexed folder IDs in the current navigation path.
-    const indexedAncestorIds = new Set(
-      breadcrumbs.map(b => b.resourceId).filter(id => id && indexedIds.has(id))
+    // THIS IS THE FIX: Check if ANY ancestor folder in the breadcrumb trail is indexed.
+    const isCurrentFolderOrAncestorIndexed = breadcrumbs.some(
+      breadcrumb => breadcrumb.resourceId && indexedIds.has(breadcrumb.resourceId)
     );
 
     const statusMap = new Map<string, IndexingStatus>();
@@ -165,12 +165,12 @@ export function FilePicker({
       if (pendingOperation) {
         status = pendingOperation === 'adding' ? 'indexing' : 'unindexing';
       } else {
-        const isParentFolderIndexed = indexedAncestorIds.size > 0;
         const isResourceExplicitlyIndexed = indexedIds.has(resource.resource_id);
 
-        // A file is "indexed" if it was explicitly added OR its parent folder was.
-        // A folder is only "indexed" if it was explicitly added.
-        if (isResourceExplicitlyIndexed || (resource.inode_type === 'file' && isParentFolderIndexed)) {
+        // A resource is considered "indexed" if:
+        // 1. It was explicitly added itself.
+        // 2. OR, it is inside a folder (or sub-folder) that has been indexed.
+        if (isResourceExplicitlyIndexed || isCurrentFolderOrAncestorIndexed) {
           status = 'indexed';
         } else {
           status = 'not-indexed';

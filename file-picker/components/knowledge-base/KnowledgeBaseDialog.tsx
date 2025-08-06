@@ -24,6 +24,7 @@ import {
   TableRow 
 } from '../ui/table';
 import { useDeindexResource } from '@/hooks/use-deindex-resource';
+import { useKnowledgeBase } from '@/hooks/use-knowledge-base'; // Import the hook
 
 // API fetcher function
 async function getIndexedResources(): Promise<Array<{
@@ -78,22 +79,8 @@ export function KnowledgeBaseDialog({ isOpen, onOpenChange }: KnowledgeBaseDialo
     refetchIntervalInBackground: false, // Only refetch when dialog is focused
   });
 
-  // Fetch knowledge base details to get authoritative indexed IDs
-  const { data: knowledgeBase, isFetching: isKbFetching } = useQuery({
-    queryKey: ['knowledge-bases'],
-    queryFn: async () => {
-      const response = await fetch('/api/knowledge-bases');
-      if (!response.ok) {
-        throw new Error('Failed to fetch knowledge base details');
-      }
-      const data = await response.json();
-      return data[0]; // Assuming we have one knowledge base
-    },
-    enabled: isOpen,
-    staleTime: 5 * 1000, // 5 seconds - very short to catch sync updates quickly
-    refetchInterval: isOpen ? 5000 : false, // Auto-refresh every 5 seconds when open
-    refetchIntervalInBackground: false, // Only refetch when dialog is focused
-  });
+  // This query now uses our fast, reliable hook to get the KB details
+  const { data: knowledgeBase, isFetching: isKbFetching } = useKnowledgeBase();
 
   const { mutate: deindexResource } = useDeindexResource();
 
