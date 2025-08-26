@@ -77,11 +77,6 @@ class ApiClient {
       : `${API_CONFIG.BASE_URL}${endpoint}`;
     
     console.log('📡 Making request to:', url);
-    console.log('📝 Request headers:', {
-      'Content-Type': 'application/json',
-      ...this.authHeaders,
-      ...options.headers,
-    });
 
     const response = await fetch(url, {
       ...options,

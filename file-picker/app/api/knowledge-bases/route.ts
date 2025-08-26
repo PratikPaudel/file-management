@@ -88,7 +88,6 @@ export async function POST(request: NextRequest) {
 
     // Parse request body
     const data = await request.json();
-    console.log('📝 Creating knowledge base with data:', JSON.stringify(data, null, 2));
 
     // Support both formats: app/ format and file-picker/ format
     let transformedData;
